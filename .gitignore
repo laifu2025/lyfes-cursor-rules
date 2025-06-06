@@ -4,6 +4,6 @@ node_modules
 .vscode-test/
 .env
 .DS_Store
-
+.idea
 # 保留发布文件
 !laifuge-cursor-rules-*.vsix
