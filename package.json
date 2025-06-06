@@ -1,7 +1,7 @@
 {
     "name": "laifuge-cursor-rules",
     "displayName": "来福哥的Cursor Rules",
-    "description": "为Cursor提供中文优化的.cursorrules模板集合，提升AI编程体验",
+    "description": "为Cursor提供中文优化的Cursor Rules模板集合，提升AI编程体验",
     "version": "1.0.0",
     "publisher": "laifuge",
     "icon": "icon.png",

@@ -10,3 +10,8 @@ vsc-extension-quickstart.md
 **/*.ts
 node_modules/**
 !node_modules/fs-extra/**
+.git/**
+.idea/**
+.cursor/sql/**
+*.vsix
+GITHUB_SETUP.md
