@@ -709,7 +709,7 @@ async function showCategorizedRuleSelection(context: vscode.ExtensionContext): P
     }
 
     return null;
-}
+        }
 
 // 显示分类内的模板选择
 async function showTemplatesInCategory(context: vscode.ExtensionContext, category: RuleCategory, showBackButton: boolean = true): Promise<{ content: string; filename: string } | null> {
@@ -718,7 +718,7 @@ async function showTemplatesInCategory(context: vscode.ExtensionContext, categor
         description: template.description,
         template: template
     }));
-            
+
     // 只在需要时添加返回选项
     if (showBackButton) {
         templateItems.unshift({
@@ -759,7 +759,7 @@ async function showAllTemplatesSelection(context: vscode.ExtensionContext): Prom
         detail: template.category ? `分类: ${template.category.replace(/^\$\([^)]+\)\s*/, '')}` : undefined,
         template: template
     }));
-
+                
     // 添加返回选项
     allTemplateItems.unshift({
         label: '$(arrow-left) 返回分类选择',
@@ -775,7 +775,7 @@ async function showAllTemplatesSelection(context: vscode.ExtensionContext): Prom
 
     if (!selectedItem) {
         return null;
-        }
+                }
 
     // 如果选择了返回，递归调用分类选择
     if (selectedItem.label.includes('返回分类选择')) {
@@ -788,7 +788,7 @@ async function showAllTemplatesSelection(context: vscode.ExtensionContext): Prom
     }
 
     return null;
-}
+        }
 
 // 加载模板文件内容
 async function loadTemplate(context: vscode.ExtensionContext, filename: string): Promise<{ content: string; filename: string } | null> {
@@ -798,7 +798,7 @@ async function loadTemplate(context: vscode.ExtensionContext, filename: string):
         if (!fs.existsSync(templatePath)) {
             vscode.window.showErrorMessage(`模板文件不存在: ${filename}`);
             return null;
-        }
+            }
         
         const content = fs.readFileSync(templatePath, 'utf8');
         
@@ -806,7 +806,7 @@ async function loadTemplate(context: vscode.ExtensionContext, filename: string):
             vscode.window.showErrorMessage(`模板文件内容为空: ${filename}`);
             return null;
         }
-        
+
         // 生成规则文件名：将 template.mdc 转换为 template-rules.mdc
         const baseFileName = path.basename(filename, '.mdc');
         const ruleFileName = `${baseFileName}-rules.mdc`;
