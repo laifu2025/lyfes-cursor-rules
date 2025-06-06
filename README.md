@@ -13,7 +13,7 @@
 ## 🚀 使用方法
 
 ### 安装插件
-1. 在Cursor中打开扩展面板（Ctrl+Shift+X）
+1. 在Cursor中打开扩展面板（Cmd+Shift+X）
 2. 搜索"来福哥的Cursor Rules"
 3. 点击安装
 
@@ -22,7 +22,7 @@
 2. 使用命令面板（Ctrl+Shift+P / Cmd+Shift+P）
 3. 输入"添加 Cursor 规则文件"或"来福哥"
 4. 选择适合你项目的规则模板
-5. 规则文件将自动添加到项目根目录
+5. 规则文件将自动添加到项目的 `.cursor/rules/` 目录下（如果目录不存在会自动创建）
 
 ### 查看所有模板
 1. 使用命令面板（Ctrl+Shift+P / Cmd+Shift+P）

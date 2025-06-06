@@ -471,6 +471,30 @@ function validateWorkspace(): string | null {
 }
 
 /**
+ * 确保.cursor/rules目录存在
+ * @param workspaceRoot 工作区根路径
+ * @returns .cursor/rules目录路径
+ */
+function ensureCursorRulesDirectory(workspaceRoot: string): string {
+    const cursorDir = path.join(workspaceRoot, '.cursor');
+    const rulesDir = path.join(cursorDir, 'rules');
+    
+    // 确保.cursor目录存在
+    if (!fs.existsSync(cursorDir)) {
+        fs.mkdirSync(cursorDir, { recursive: true });
+        Logger.info(`创建.cursor目录: ${cursorDir}`);
+    }
+    
+    // 确保.cursor/rules目录存在
+    if (!fs.existsSync(rulesDir)) {
+        fs.mkdirSync(rulesDir, { recursive: true });
+        Logger.info(`创建.cursor/rules目录: ${rulesDir}`);
+    }
+    
+    return rulesDir;
+}
+
+/**
  * 扩展激活函数
  * @param context VS Code扩展上下文
  */
@@ -545,8 +569,11 @@ async function addCategoryRules(context: vscode.ExtensionContext, categoryName: 
             return;
         }
 
+        // 确保.cursor/rules目录存在
+        const rulesDir = ensureCursorRulesDirectory(workspaceRoot);
+        
         // 根据选择的模板生成对应的文件名
-        const filePath = path.join(workspaceRoot, selectedTemplate.filename);
+        const filePath = path.join(rulesDir, selectedTemplate.filename);
 
         // 检查文件是否已存在
         if (fs.existsSync(filePath)) {
@@ -633,8 +660,11 @@ async function addCursorRules(context: vscode.ExtensionContext) {
             return;
         }
 
+        // 确保.cursor/rules目录存在
+        const rulesDir = ensureCursorRulesDirectory(workspaceRoot);
+        
         // 根据选择的模板生成对应的文件名
-        const filePath = path.join(workspaceRoot, selectedTemplate.filename);
+        const filePath = path.join(rulesDir, selectedTemplate.filename);
 
         Logger.info(`准备写入文件: ${filePath}`);
 
