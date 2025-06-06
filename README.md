@@ -13,7 +13,7 @@
 ## 🚀 使用方法
 
 ### 安装插件
-1. 在VS Code中打开扩展面板（Ctrl+Shift+X）
+1. 在Cursor中打开扩展面板（Ctrl+Shift+X）
 2. 搜索"来福哥的Cursor Rules"
 3. 点击安装
 
