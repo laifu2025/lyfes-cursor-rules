@@ -1,0 +1,601 @@
+# 来福哥的TypeScript开发规则
+
+## 项目配置规范
+### tsconfig.json配置
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@/types/*": ["src/types/*"],
+      "@/utils/*": ["src/utils/*"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
+```
+
+## 类型定义规范
+### 基础类型定义
+```typescript
+// ✅ 使用明确的类型
+interface User {
+  id: string;          // 不使用 any 或 unknown
+  name: string;
+  email: string;
+  age: number;
+  isActive: boolean;
+  createdAt: Date;     // 具体的日期类型
+}
+
+// ✅ 可选属性和只读属性
+interface CreateUserRequest {
+  readonly id?: string;        // 只读且可选
+  name: string;
+  email: string;
+  password: string;
+  avatar?: string;             // 可选属性
+}
+
+// ✅ 索引签名
+interface UserSettings {
+  [key: string]: string | number | boolean;
+  theme: 'light' | 'dark';     // 具体的字面量类型
+  language: string;
+}
+```
+
+### 联合类型和交叉类型
+```typescript
+// ✅ 联合类型
+type Status = 'pending' | 'success' | 'error' | 'loading';
+type Theme = 'light' | 'dark' | 'auto';
+
+// ✅ 交叉类型
+type UserWithPermissions = User & {
+  permissions: Permission[];
+  role: Role;
+};
+
+// ✅ 条件类型
+type ApiResponse<T> = T extends string 
+  ? { message: T } 
+  : { data: T; success: boolean };
+
+// ✅ 映射类型
+type PartialUser = Partial<User>;
+type RequiredUser = Required<User>;
+type UserKeys = keyof User;
+type UserEmail = Pick<User, 'email'>;
+type UserWithoutId = Omit<User, 'id'>;
+```
+
+### 泛型使用规范
+```typescript
+// ✅ 泛型函数
+function createResponse<T>(data: T, success: boolean = true): ApiResponse<T> {
+  return {
+    data,
+    success,
+    timestamp: new Date().toISOString()
+  };
+}
+
+// ✅ 泛型类
+class Repository<T> {
+  private items: T[] = [];
+
+  add(item: T): void {
+    this.items.push(item);
+  }
+
+  findById<K extends keyof T>(key: K, value: T[K]): T | undefined {
+    return this.items.find(item => item[key] === value);
+  }
+
+  getAll(): readonly T[] {
+    return Object.freeze([...this.items]);
+  }
+}
+
+// ✅ 泛型约束
+interface Identifiable {
+  id: string;
+}
+
+class EntityService<T extends Identifiable> {
+  async save(entity: T): Promise<T> {
+    // 保存逻辑
+    return entity;
+  }
+
+  async findById(id: string): Promise<T | null> {
+    // 查找逻辑
+    return null;
+  }
+}
+```
+
+## 函数类型规范
+### 函数声明和类型
+```typescript
+// ✅ 函数类型声明
+type EventHandler<T = Event> = (event: T) => void;
+type Predicate<T> = (item: T) => boolean;
+type Transformer<T, U> = (input: T) => U;
+
+// ✅ 函数重载
+function processData(data: string): string;
+function processData(data: number): number;
+function processData(data: string[]): string[];
+function processData(data: string | number | string[]): any {
+  if (typeof data === 'string') {
+    return data.toUpperCase();
+  }
+  if (typeof data === 'number') {
+    return data * 2;
+  }
+  return data.map(item => item.toUpperCase());
+}
+
+// ✅ 可选参数和默认参数
+function createUser(
+  name: string,
+  email: string,
+  options: {
+    isActive?: boolean;
+    role?: string;
+  } = {}
+): User {
+  return {
+    id: generateId(),
+    name,
+    email,
+    isActive: options.isActive ?? true,
+    role: options.role ?? 'user',
+    createdAt: new Date()
+  };
+}
+
+// ✅ 剩余参数
+function mergeObjects<T extends Record<string, any>>(
+  target: T,
+  ...sources: Partial<T>[]
+): T {
+  return Object.assign(target, ...sources);
+}
+```
+
+### 异步函数类型
+```typescript
+// ✅ Promise类型
+async function fetchUser(id: string): Promise<User | null> {
+  try {
+    const response = await fetch(`/api/users/${id}`);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const userData = await response.json();
+    return userData as User;
+  } catch (error) {
+    console.error('获取用户失败:', error);
+    return null;
+  }
+}
+
+// ✅ 错误处理类型
+type Result<T, E = Error> = 
+  | { success: true; data: T }
+  | { success: false; error: E };
+
+async function safeApiCall<T>(
+  apiCall: () => Promise<T>
+): Promise<Result<T>> {
+  try {
+    const data = await apiCall();
+    return { success: true, data };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error instanceof Error ? error : new Error(String(error))
+    };
+  }
+}
+```
+
+## 类和接口规范
+### 类定义
+```typescript
+// ✅ 抽象类
+abstract class BaseEntity {
+  constructor(
+    public readonly id: string,
+    public readonly createdAt: Date = new Date()
+  ) {}
+
+  abstract validate(): boolean;
+
+  getAge(): number {
+    return Date.now() - this.createdAt.getTime();
+  }
+}
+
+// ✅ 具体实现类
+class User extends BaseEntity {
+  private _email: string;
+
+  constructor(
+    id: string,
+    public name: string,
+    email: string,
+    private _isActive: boolean = true
+  ) {
+    super(id);
+    this._email = this.validateEmail(email);
+  }
+
+  // Getter和Setter
+  get email(): string {
+    return this._email;
+  }
+
+  set email(value: string) {
+    this._email = this.validateEmail(value);
+  }
+
+  get isActive(): boolean {
+    return this._isActive;
+  }
+
+  // 私有方法
+  private validateEmail(email: string): string {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new Error('邮箱格式不正确');
+    }
+    return email;
+  }
+
+  // 实现抽象方法
+  validate(): boolean {
+    return this.name.length > 0 && this._email.length > 0;
+  }
+
+  // 静态方法
+  static fromJSON(data: any): User {
+    return new User(data.id, data.name, data.email, data.isActive);
+  }
+}
+```
+
+### 接口继承和实现
+```typescript
+// ✅ 基础接口
+interface Identifiable {
+  id: string;
+}
+
+interface Timestampable {
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
+interface Validatable {
+  validate(): boolean;
+}
+
+// ✅ 接口继承
+interface Entity extends Identifiable, Timestampable {
+  version: number;
+}
+
+// ✅ 接口实现
+class UserService implements Validatable {
+  constructor(private users: User[] = []) {}
+
+  validate(): boolean {
+    return this.users.every(user => user.validate());
+  }
+
+  async create(userData: CreateUserRequest): Promise<User> {
+    const user = new User(
+      userData.id || generateId(),
+      userData.name,
+      userData.email
+    );
+    
+    if (!user.validate()) {
+      throw new Error('用户数据验证失败');
+    }
+    
+    this.users.push(user);
+    return user;
+  }
+}
+```
+
+## 模块和命名空间
+### 模块导出
+```typescript
+// user.types.ts - 类型定义
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export type UserStatus = 'active' | 'inactive';
+
+export interface CreateUserRequest {
+  name: string;
+  email: string;
+}
+
+// user.service.ts - 服务实现
+import type { User, CreateUserRequest, UserStatus } from './user.types';
+
+export class UserService {
+  async createUser(request: CreateUserRequest): Promise<User> {
+    // 实现逻辑
+  }
+}
+
+export const userService = new UserService();
+
+// 默认导出
+export default UserService;
+
+// index.ts - 统一导出
+export * from './user.types';
+export * from './user.service';
+export { default as UserService } from './user.service';
+```
+
+### 命名空间
+```typescript
+// ✅ 命名空间用于组织相关类型
+namespace API {
+  export interface Request<T = any> {
+    url: string;
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE';
+    data?: T;
+    headers?: Record<string, string>;
+  }
+
+  export interface Response<T = any> {
+    status: number;
+    data: T;
+    message?: string;
+  }
+
+  export namespace User {
+    export interface CreateRequest {
+      name: string;
+      email: string;
+    }
+
+    export interface UpdateRequest {
+      name?: string;
+      email?: string;
+    }
+  }
+}
+
+// 使用命名空间
+function makeRequest<T>(request: API.Request): Promise<API.Response<T>> {
+  // 实现逻辑
+}
+```
+
+## 工具类型使用
+### 内置工具类型
+```typescript
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  password: string;
+  isActive: boolean;
+}
+
+// ✅ Partial - 所有属性变为可选
+type PartialUser = Partial<User>;
+// { id?: string; name?: string; email?: string; password?: string; isActive?: boolean; }
+
+// ✅ Required - 所有属性变为必需
+type RequiredUser = Required<PartialUser>;
+
+// ✅ Pick - 选择特定属性
+type UserProfile = Pick<User, 'id' | 'name' | 'email'>;
+// { id: string; name: string; email: string; }
+
+// ✅ Omit - 排除特定属性
+type CreateUserData = Omit<User, 'id'>;
+// { name: string; email: string; password: string; isActive: boolean; }
+
+// ✅ Record - 创建映射类型
+type UserRoles = Record<string, string[]>;
+// { [key: string]: string[]; }
+
+// ✅ Exclude 和 Extract
+type Theme = 'light' | 'dark' | 'auto' | 'system';
+type ManualTheme = Exclude<Theme, 'auto' | 'system'>; // 'light' | 'dark'
+type AutoTheme = Extract<Theme, 'auto' | 'system'>;   // 'auto' | 'system'
+```
+
+### 自定义工具类型
+```typescript
+// ✅ 深度只读
+type DeepReadonly<T> = {
+  readonly [P in keyof T]: T[P] extends object ? DeepReadonly<T[P]> : T[P];
+};
+
+// ✅ 可空类型
+type Nullable<T> = T | null;
+type Optional<T> = T | undefined;
+
+// ✅ 函数参数类型
+type Parameters<T extends (...args: any) => any> = T extends (...args: infer P) => any ? P : never;
+type ReturnType<T extends (...args: any) => any> = T extends (...args: any) => infer R ? R : any;
+
+// ✅ 条件类型
+type NonNullable<T> = T extends null | undefined ? never : T;
+
+// ✅ 模板字面量类型
+type EventName<T extends string> = `on${Capitalize<T>}`;
+type UserEvent = EventName<'click' | 'hover'>; // 'onClick' | 'onHover'
+```
+
+## 错误处理和类型守卫
+### 类型守卫
+```typescript
+// ✅ 类型谓词
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
+function isUser(obj: any): obj is User {
+  return (
+    obj &&
+    typeof obj === 'object' &&
+    typeof obj.id === 'string' &&
+    typeof obj.name === 'string' &&
+    typeof obj.email === 'string'
+  );
+}
+
+// ✅ 断言函数
+function assertIsUser(obj: unknown): asserts obj is User {
+  if (!isUser(obj)) {
+    throw new Error('对象不是有效的User类型');
+  }
+}
+
+// 使用类型守卫
+function processUserData(data: unknown) {
+  if (isUser(data)) {
+    // 在这个分支中，data 的类型是 User
+    console.log(data.name); // TypeScript 知道这是安全的
+  }
+}
+```
+
+### 错误处理类型
+```typescript
+// ✅ 错误类型定义
+class AppError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public statusCode: number = 500
+  ) {
+    super(message);
+    this.name = this.constructor.name;
+  }
+}
+
+class ValidationError extends AppError {
+  constructor(message: string, public field?: string) {
+    super(message, 'VALIDATION_ERROR', 400);
+  }
+}
+
+// ✅ Result 类型模式
+type Result<T, E = Error> = 
+  | { success: true; data: T }
+  | { success: false; error: E };
+
+async function safeOperation<T>(
+  operation: () => Promise<T>
+): Promise<Result<T, AppError>> {
+  try {
+    const data = await operation();
+    return { success: true, data };
+  } catch (error) {
+    const appError = error instanceof AppError 
+      ? error 
+      : new AppError('未知错误', 'UNKNOWN_ERROR');
+    return { success: false, error: appError };
+  }
+}
+```
+
+## 配置和最佳实践
+### ESLint TypeScript 规则
+```json
+{
+  "extends": [
+    "@typescript-eslint/recommended",
+    "@typescript-eslint/recommended-requiring-type-checking"
+  ],
+  "rules": {
+    "@typescript-eslint/no-unused-vars": "error",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/explicit-function-return-type": "warn",
+    "@typescript-eslint/no-non-null-assertion": "error",
+    "@typescript-eslint/prefer-nullish-coalescing": "error",
+    "@typescript-eslint/prefer-optional-chain": "error",
+    "@typescript-eslint/strict-boolean-expressions": "error"
+  }
+}
+```
+
+### 类型注释规范
+```typescript
+// ✅ 明确的返回类型
+function calculateTotal(items: Item[]): number {
+  return items.reduce((sum, item) => sum + item.price, 0);
+}
+
+// ✅ 参数类型注释
+function formatUser(
+  user: User,
+  options: {
+    includeEmail?: boolean;
+    includeId?: boolean;
+  } = {}
+): string {
+  let result = user.name;
+  if (options.includeEmail) {
+    result += ` (${user.email})`;
+  }
+  if (options.includeId) {
+    result += ` [${user.id}]`;
+  }
+  return result;
+}
+
+// ✅ 复杂类型的类型别名
+type EventListener<T extends Event = Event> = (event: T) => void;
+type AsyncEventListener<T extends Event = Event> = (event: T) => Promise<void>;
+
+// ✅ 使用const assertions
+const themes = ['light', 'dark', 'auto'] as const;
+type Theme = typeof themes[number]; // 'light' | 'dark' | 'auto'
+
+const userRoles = {
+  ADMIN: 'admin',
+  USER: 'user',
+  GUEST: 'guest'
+} as const;
+type UserRole = typeof userRoles[keyof typeof userRoles];
+```

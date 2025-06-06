@@ -1,0 +1,717 @@
+# 来福哥的Go开发规则
+
+## 项目结构规范
+```
+project/
+├── cmd/                    # 应用程序入口
+│   └── server/
+│       └── main.go
+├── internal/               # 私有代码
+│   ├── api/               # API处理器
+│   ├── service/           # 业务逻辑
+│   ├── repository/        # 数据访问层
+│   ├── model/             # 数据模型
+│   ├── middleware/        # 中间件
+│   └── config/            # 配置
+├── pkg/                   # 公共代码库
+│   ├── logger/
+│   ├── database/
+│   └── utils/
+├── api/                   # API定义文件
+├── web/                   # 前端静态文件
+├── scripts/               # 脚本文件
+├── deployments/           # 部署配置
+├── docs/                  # 文档
+├── go.mod                 # Go模块文件
+├── go.sum                 # 依赖锁定文件
+├── Makefile              # 构建脚本
+└── README.md             # 项目说明
+```
+
+## 代码规范
+### 命名约定
+```go
+// ✅ 包名：全小写，简洁明了
+package userservice
+
+// ✅ 接口名：通常以-er结尾
+type UserReader interface {
+    GetUser(id string) (*User, error)
+}
+
+type UserWriter interface {
+    CreateUser(user *User) error
+    UpdateUser(user *User) error
+}
+
+// ✅ 结构体：使用驼峰命名
+type UserService struct {
+    repo UserRepository
+    log  logger.Logger
+}
+
+// ✅ 方法名：首字母大写表示公开，小写表示私有
+func (s *UserService) GetUserByID(id string) (*User, error) {
+    return s.repo.FindByID(id)
+}
+
+func (s *UserService) validateUser(user *User) error {
+    // 私有方法，验证用户数据
+    return nil
+}
+
+// ✅ 常量：使用驼峰命名或全大写
+const (
+    DefaultPageSize = 20
+    MaxPageSize     = 100
+    
+    STATUS_ACTIVE   = "active"
+    STATUS_INACTIVE = "inactive"
+)
+
+// ✅ 变量：使用驼峰命名
+var (
+    ErrUserNotFound = errors.New("用户不存在")
+    ErrInvalidEmail = errors.New("邮箱格式不正确")
+)
+```
+
+### 错误处理规范
+```go
+// ✅ 自定义错误类型
+type AppError struct {
+    Code    string `json:"code"`
+    Message string `json:"message"`
+    Err     error  `json:"-"`
+}
+
+func (e *AppError) Error() string {
+    if e.Err != nil {
+        return fmt.Sprintf("%s: %v", e.Message, e.Err)
+    }
+    return e.Message
+}
+
+func NewAppError(code, message string, err error) *AppError {
+    return &AppError{
+        Code:    code,
+        Message: message,
+        Err:     err,
+    }
+}
+
+// ✅ 错误处理最佳实践
+func (s *UserService) CreateUser(ctx context.Context, req *CreateUserRequest) (*User, error) {
+    // 参数验证
+    if err := s.validateCreateUserRequest(req); err != nil {
+        return nil, NewAppError("INVALID_REQUEST", "请求参数无效", err)
+    }
+
+    // 检查邮箱是否已存在
+    existingUser, err := s.repo.FindByEmail(ctx, req.Email)
+    if err != nil && !errors.Is(err, ErrUserNotFound) {
+        return nil, fmt.Errorf("检查邮箱失败: %w", err)
+    }
+    if existingUser != nil {
+        return nil, NewAppError("EMAIL_EXISTS", "邮箱已被注册", nil)
+    }
+
+    // 创建用户
+    user := &User{
+        ID:        uuid.New().String(),
+        Name:      req.Name,
+        Email:     req.Email,
+        CreatedAt: time.Now(),
+    }
+
+    if err := s.repo.Create(ctx, user); err != nil {
+        return nil, fmt.Errorf("创建用户失败: %w", err)
+    }
+
+    s.log.Info("用户创建成功", "user_id", user.ID, "email", user.Email)
+    return user, nil
+}
+```
+
+## 数据模型设计
+### 结构体定义
+```go
+// ✅ 使用结构体标签
+type User struct {
+    ID        string    `json:"id" db:"id" validate:"required"`
+    Name      string    `json:"name" db:"name" validate:"required,min=2,max=50"`
+    Email     string    `json:"email" db:"email" validate:"required,email"`
+    Password  string    `json:"-" db:"password"` // 密码不序列化到JSON
+    IsActive  bool      `json:"is_active" db:"is_active"`
+    CreatedAt time.Time `json:"created_at" db:"created_at"`
+    UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// ✅ 为模型添加验证方法
+func (u *User) Validate() error {
+    if u.Name == "" {
+        return errors.New("用户名不能为空")
+    }
+    if !isValidEmail(u.Email) {
+        return errors.New("邮箱格式不正确")
+    }
+    return nil
+}
+
+// ✅ 为模型添加业务方法
+func (u *User) IsEmailVerified() bool {
+    return u.EmailVerifiedAt != nil
+}
+
+func (u *User) CanLogin() bool {
+    return u.IsActive && u.IsEmailVerified()
+}
+```
+
+### 数据传输对象（DTO）
+```go
+// ✅ 请求和响应结构体
+type CreateUserRequest struct {
+    Name     string `json:"name" validate:"required,min=2,max=50"`
+    Email    string `json:"email" validate:"required,email"`
+    Password string `json:"password" validate:"required,min=8"`
+}
+
+type UpdateUserRequest struct {
+    Name  *string `json:"name,omitempty" validate:"omitempty,min=2,max=50"`
+    Email *string `json:"email,omitempty" validate:"omitempty,email"`
+}
+
+type UserResponse struct {
+    ID        string    `json:"id"`
+    Name      string    `json:"name"`
+    Email     string    `json:"email"`
+    IsActive  bool      `json:"is_active"`
+    CreatedAt time.Time `json:"created_at"`
+}
+
+// ✅ 转换方法
+func (u *User) ToResponse() *UserResponse {
+    return &UserResponse{
+        ID:        u.ID,
+        Name:      u.Name,
+        Email:     u.Email,
+        IsActive:  u.IsActive,
+        CreatedAt: u.CreatedAt,
+    }
+}
+```
+
+## API设计规范
+### Gin框架最佳实践
+```go
+// ✅ 控制器结构
+type UserController struct {
+    service UserService
+    log     logger.Logger
+}
+
+func NewUserController(service UserService, log logger.Logger) *UserController {
+    return &UserController{
+        service: service,
+        log:     log,
+    }
+}
+
+// ✅ 统一响应格式
+type APIResponse struct {
+    Success bool        `json:"success"`
+    Data    interface{} `json:"data,omitempty"`
+    Message string      `json:"message"`
+    Error   string      `json:"error,omitempty"`
+    Meta    *Meta       `json:"meta,omitempty"`
+}
+
+type Meta struct {
+    Page      int `json:"page"`
+    Limit     int `json:"limit"`
+    Total     int `json:"total"`
+    TotalPage int `json:"total_page"`
+}
+
+// ✅ 响应辅助方法
+func Success(c *gin.Context, data interface{}, message string) {
+    c.JSON(http.StatusOK, APIResponse{
+        Success: true,
+        Data:    data,
+        Message: message,
+    })
+}
+
+func Error(c *gin.Context, code int, message string, err error) {
+    response := APIResponse{
+        Success: false,
+        Message: message,
+    }
+    
+    if err != nil {
+        response.Error = err.Error()
+    }
+    
+    c.JSON(code, response)
+}
+
+// ✅ 控制器方法
+func (ctrl *UserController) CreateUser(c *gin.Context) {
+    var req CreateUserRequest
+    if err := c.ShouldBindJSON(&req); err != nil {
+        Error(c, http.StatusBadRequest, "请求参数格式错误", err)
+        return
+    }
+
+    // 参数验证
+    if err := validator.New().Struct(&req); err != nil {
+        Error(c, http.StatusBadRequest, "参数验证失败", err)
+        return
+    }
+
+    user, err := ctrl.service.CreateUser(c.Request.Context(), &req)
+    if err != nil {
+        var appErr *AppError
+        if errors.As(err, &appErr) {
+            switch appErr.Code {
+            case "EMAIL_EXISTS":
+                Error(c, http.StatusConflict, appErr.Message, nil)
+            case "INVALID_REQUEST":
+                Error(c, http.StatusBadRequest, appErr.Message, nil)
+            default:
+                Error(c, http.StatusInternalServerError, "服务器内部错误", nil)
+            }
+        } else {
+            ctrl.log.Error("创建用户失败", "error", err)
+            Error(c, http.StatusInternalServerError, "服务器内部错误", nil)
+        }
+        return
+    }
+
+    Success(c, user.ToResponse(), "用户创建成功")
+}
+
+func (ctrl *UserController) GetUsers(c *gin.Context) {
+    page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+    limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+    search := c.Query("search")
+
+    if page < 1 {
+        page = 1
+    }
+    if limit < 1 || limit > 100 {
+        limit = 20
+    }
+
+    users, total, err := ctrl.service.GetUsers(c.Request.Context(), page, limit, search)
+    if err != nil {
+        ctrl.log.Error("获取用户列表失败", "error", err)
+        Error(c, http.StatusInternalServerError, "获取用户列表失败", nil)
+        return
+    }
+
+    c.JSON(http.StatusOK, APIResponse{
+        Success: true,
+        Data:    users,
+        Message: "获取用户列表成功",
+        Meta: &Meta{
+            Page:      page,
+            Limit:     limit,
+            Total:     total,
+            TotalPage: (total + limit - 1) / limit,
+        },
+    })
+}
+```
+
+## 数据库操作规范
+### GORM使用最佳实践
+```go
+// ✅ 数据库配置
+func NewDB(config *Config) (*gorm.DB, error) {
+    dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%d sslmode=disable",
+        config.DB.Host, config.DB.User, config.DB.Password, config.DB.Name, config.DB.Port)
+    
+    db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+        Logger: logger.Default.LogMode(logger.Info),
+        NamingStrategy: schema.NamingStrategy{
+            TablePrefix:   config.DB.TablePrefix,
+            SingularTable: false,
+        },
+    })
+    if err != nil {
+        return nil, fmt.Errorf("连接数据库失败: %w", err)
+    }
+
+    // 配置连接池
+    sqlDB, err := db.DB()
+    if err != nil {
+        return nil, err
+    }
+    
+    sqlDB.SetMaxIdleConns(config.DB.MaxIdleConns)
+    sqlDB.SetMaxOpenConns(config.DB.MaxOpenConns)
+    sqlDB.SetConnMaxLifetime(time.Duration(config.DB.ConnMaxLifetime) * time.Minute)
+
+    return db, nil
+}
+
+// ✅ Repository接口定义
+type UserRepository interface {
+    Create(ctx context.Context, user *User) error
+    FindByID(ctx context.Context, id string) (*User, error)
+    FindByEmail(ctx context.Context, email string) (*User, error)
+    Update(ctx context.Context, user *User) error
+    Delete(ctx context.Context, id string) error
+    List(ctx context.Context, page, limit int, search string) ([]*User, int, error)
+}
+
+// ✅ Repository实现
+type userRepository struct {
+    db *gorm.DB
+}
+
+func NewUserRepository(db *gorm.DB) UserRepository {
+    return &userRepository{db: db}
+}
+
+func (r *userRepository) Create(ctx context.Context, user *User) error {
+    return r.db.WithContext(ctx).Create(user).Error
+}
+
+func (r *userRepository) FindByID(ctx context.Context, id string) (*User, error) {
+    var user User
+    err := r.db.WithContext(ctx).Where("id = ?", id).First(&user).Error
+    if errors.Is(err, gorm.ErrRecordNotFound) {
+        return nil, ErrUserNotFound
+    }
+    return &user, err
+}
+
+func (r *userRepository) List(ctx context.Context, page, limit int, search string) ([]*User, int, error) {
+    var users []*User
+    var total int64
+
+    query := r.db.WithContext(ctx).Model(&User{})
+    
+    if search != "" {
+        query = query.Where("name ILIKE ? OR email ILIKE ?", "%"+search+"%", "%"+search+"%")
+    }
+
+    // 获取总数
+    if err := query.Count(&total).Error; err != nil {
+        return nil, 0, err
+    }
+
+    // 分页查询
+    offset := (page - 1) * limit
+    if err := query.Offset(offset).Limit(limit).Order("created_at DESC").Find(&users).Error; err != nil {
+        return nil, 0, err
+    }
+
+    return users, int(total), nil
+}
+```
+
+## 并发编程规范
+### Goroutine使用
+```go
+// ✅ 使用context控制goroutine
+func (s *UserService) BatchProcessUsers(ctx context.Context, userIDs []string) error {
+    // 创建工作池
+    const workerCount = 10
+    jobs := make(chan string, len(userIDs))
+    results := make(chan error, len(userIDs))
+
+    // 启动工作者
+    var wg sync.WaitGroup
+    for i := 0; i < workerCount; i++ {
+        wg.Add(1)
+        go func() {
+            defer wg.Done()
+            for {
+                select {
+                case userID, ok := <-jobs:
+                    if !ok {
+                        return
+                    }
+                    if err := s.processUser(ctx, userID); err != nil {
+                        results <- err
+                    } else {
+                        results <- nil
+                    }
+                case <-ctx.Done():
+                    return
+                }
+            }
+        }()
+    }
+
+    // 发送任务
+    go func() {
+        defer close(jobs)
+        for _, userID := range userIDs {
+            select {
+            case jobs <- userID:
+            case <-ctx.Done():
+                return
+            }
+        }
+    }()
+
+    // 关闭结果通道
+    go func() {
+        wg.Wait()
+        close(results)
+    }()
+
+    // 收集结果
+    var errors []error
+    for err := range results {
+        if err != nil {
+            errors = append(errors, err)
+        }
+    }
+
+    if len(errors) > 0 {
+        return fmt.Errorf("批量处理失败，错误数量: %d", len(errors))
+    }
+
+    return nil
+}
+```
+
+### 缓存实现
+```go
+// ✅ Redis缓存封装
+type CacheService struct {
+    client *redis.Client
+    ttl    time.Duration
+}
+
+func NewCacheService(client *redis.Client, ttl time.Duration) *CacheService {
+    return &CacheService{
+        client: client,
+        ttl:    ttl,
+    }
+}
+
+func (c *CacheService) Set(ctx context.Context, key string, value interface{}) error {
+    data, err := json.Marshal(value)
+    if err != nil {
+        return fmt.Errorf("序列化数据失败: %w", err)
+    }
+    
+    return c.client.Set(ctx, key, data, c.ttl).Err()
+}
+
+func (c *CacheService) Get(ctx context.Context, key string, dest interface{}) error {
+    data, err := c.client.Get(ctx, key).Result()
+    if err != nil {
+        if errors.Is(err, redis.Nil) {
+            return ErrCacheNotFound
+        }
+        return err
+    }
+    
+    return json.Unmarshal([]byte(data), dest)
+}
+
+// ✅ 缓存装饰器模式
+func (s *UserService) GetUserWithCache(ctx context.Context, id string) (*User, error) {
+    cacheKey := fmt.Sprintf("user:%s", id)
+    
+    // 先从缓存获取
+    var user User
+    if err := s.cache.Get(ctx, cacheKey, &user); err == nil {
+        return &user, nil
+    }
+
+    // 缓存未命中，从数据库获取
+    dbUser, err := s.repo.FindByID(ctx, id)
+    if err != nil {
+        return nil, err
+    }
+
+    // 异步更新缓存
+    go func() {
+        if err := s.cache.Set(context.Background(), cacheKey, dbUser); err != nil {
+            s.log.Error("更新缓存失败", "key", cacheKey, "error", err)
+        }
+    }()
+
+    return dbUser, nil
+}
+```
+
+## 配置管理
+### 配置结构设计
+```go
+// ✅ 配置结构体
+type Config struct {
+    Server ServerConfig `mapstructure:"server"`
+    DB     DBConfig     `mapstructure:"database"`
+    Redis  RedisConfig  `mapstructure:"redis"`
+    Log    LogConfig    `mapstructure:"log"`
+    JWT    JWTConfig    `mapstructure:"jwt"`
+}
+
+type ServerConfig struct {
+    Host         string        `mapstructure:"host"`
+    Port         int           `mapstructure:"port"`
+    ReadTimeout  time.Duration `mapstructure:"read_timeout"`
+    WriteTimeout time.Duration `mapstructure:"write_timeout"`
+    IdleTimeout  time.Duration `mapstructure:"idle_timeout"`
+}
+
+type DBConfig struct {
+    Host            string `mapstructure:"host"`
+    Port            int    `mapstructure:"port"`
+    User            string `mapstructure:"user"`
+    Password        string `mapstructure:"password"`
+    Name            string `mapstructure:"name"`
+    TablePrefix     string `mapstructure:"table_prefix"`
+    MaxIdleConns    int    `mapstructure:"max_idle_conns"`
+    MaxOpenConns    int    `mapstructure:"max_open_conns"`
+    ConnMaxLifetime int    `mapstructure:"conn_max_lifetime"`
+}
+
+// ✅ 配置加载
+func LoadConfig(path string) (*Config, error) {
+    viper.SetConfigFile(path)
+    viper.AutomaticEnv()
+    viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+    if err := viper.ReadInConfig(); err != nil {
+        return nil, fmt.Errorf("读取配置文件失败: %w", err)
+    }
+
+    var config Config
+    if err := viper.Unmarshal(&config); err != nil {
+        return nil, fmt.Errorf("解析配置失败: %w", err)
+    }
+
+    return &config, nil
+}
+```
+
+## 测试规范
+### 单元测试
+```go
+// ✅ 测试文件命名: user_service_test.go
+func TestUserService_CreateUser(t *testing.T) {
+    // 创建测试数据库
+    db := setupTestDB(t)
+    defer teardownTestDB(t, db)
+
+    repo := NewUserRepository(db)
+    service := NewUserService(repo, logger.NewNopLogger())
+
+    tests := []struct {
+        name    string
+        request *CreateUserRequest
+        wantErr bool
+        errType string
+    }{
+        {
+            name: "成功创建用户",
+            request: &CreateUserRequest{
+                Name:     "张三",
+                Email:    "zhangsan@example.com",
+                Password: "password123",
+            },
+            wantErr: false,
+        },
+        {
+            name: "邮箱已存在",
+            request: &CreateUserRequest{
+                Name:     "李四",
+                Email:    "zhangsan@example.com", // 重复邮箱
+                Password: "password123",
+            },
+            wantErr: true,
+            errType: "EMAIL_EXISTS",
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            user, err := service.CreateUser(context.Background(), tt.request)
+            
+            if tt.wantErr {
+                assert.Error(t, err)
+                if tt.errType != "" {
+                    var appErr *AppError
+                    assert.True(t, errors.As(err, &appErr))
+                    assert.Equal(t, tt.errType, appErr.Code)
+                }
+                assert.Nil(t, user)
+            } else {
+                assert.NoError(t, err)
+                assert.NotNil(t, user)
+                assert.Equal(t, tt.request.Name, user.Name)
+                assert.Equal(t, tt.request.Email, user.Email)
+            }
+        })
+    }
+}
+
+// ✅ Mock接口用于测试
+//go:generate mockery --name=UserRepository --output=mocks
+```
+
+## 部署配置
+### Docker配置
+```dockerfile
+# ✅ 多阶段构建
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main cmd/server/main.go
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates tzdata
+WORKDIR /root/
+
+COPY --from=builder /app/main .
+COPY --from=builder /app/configs ./configs
+
+EXPOSE 8080
+CMD ["./main"]
+```
+
+### Makefile
+```makefile
+# ✅ 构建脚本
+.PHONY: build run test clean docker
+
+APP_NAME=myapp
+VERSION=$(shell git describe --tags --always --dirty)
+
+build:
+	go build -ldflags "-X main.version=$(VERSION)" -o bin/$(APP_NAME) cmd/server/main.go
+
+run:
+	go run cmd/server/main.go
+
+test:
+	go test -v ./...
+
+test-coverage:
+	go test -v -coverprofile=coverage.out ./...
+	go tool cover -html=coverage.out
+
+clean:
+	rm -rf bin/
+
+docker-build:
+	docker build -t $(APP_NAME):$(VERSION) .
+
+docker-run:
+	docker run -p 8080:8080 $(APP_NAME):$(VERSION)
+```

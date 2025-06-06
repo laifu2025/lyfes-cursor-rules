@@ -1,0 +1,76 @@
+{
+    "name": "laifuge-cursor-rules",
+    "displayName": "来福哥的Cursor Rules",
+    "description": "为Cursor提供中文优化的.cursorrules模板集合，提升AI编程体验",
+    "version": "1.0.0",
+    "publisher": "laifuge",
+    "icon": "icon.png",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/laifuge/cursor-rules-extension"
+    },
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "categories": [
+        "Snippets",
+        "Other",
+        "Programming Languages"
+    ],
+    "keywords": [
+        "cursor",
+        "rules",
+        "ai",
+        "chinese",
+        "中文",
+        "编程",
+        "助手",
+        "模板"
+    ],
+    "activationEvents": [],
+    "main": "./out/extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "laifuge-cursor-rules.addCursorRules",
+                "title": "添加 .cursorrules 文件",
+                "category": "来福哥"
+            },
+            {
+                "command": "laifuge-cursor-rules.listRules",
+                "title": "查看所有规则模板",
+                "category": "来福哥"
+            }
+        ],
+        "menus": {
+            "explorer/context": [
+                {
+                    "command": "laifuge-cursor-rules.addCursorRules",
+                    "group": "navigation"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "pretest": "npm run compile && npm run lint",
+        "lint": "eslint src --ext ts",
+        "test": "node ./out/test/runTest.js",
+        "package": "vsce package"
+    },
+    "devDependencies": {
+        "@types/node": "16.x",
+        "@types/vscode": "^1.74.0",
+        "@typescript-eslint/eslint-plugin": "^5.45.0",
+        "@typescript-eslint/parser": "^5.45.0",
+        "@vscode/test-electron": "^2.2.0",
+        "@vscode/vsce": "^3.5.0",
+        "eslint": "^8.28.0",
+        "typescript": "^4.9.4"
+    },
+    "dependencies": {
+        "fs-extra": "^11.1.0"
+    }
+}

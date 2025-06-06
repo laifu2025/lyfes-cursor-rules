@@ -1,0 +1,522 @@
+# 来福哥的Node.js开发规则
+
+## 项目结构规范
+```
+src/
+├── controllers/     # 控制器层
+├── services/        # 业务逻辑层
+├── models/          # 数据模型
+├── middleware/      # 中间件
+├── routes/          # 路由定义
+├── utils/           # 工具函数
+├── config/          # 配置文件
+├── types/           # TypeScript类型定义
+└── tests/           # 测试文件
+```
+
+## 代码规范
+### 模块导入顺序
+```javascript
+// ✅ 推荐的导入顺序
+// 1. Node.js内置模块
+import fs from 'fs';
+import path from 'path';
+
+// 2. 第三方依赖
+import express from 'express';
+import bcrypt from 'bcrypt';
+
+// 3. 项目内部模块
+import { UserService } from '../services/UserService.js';
+import { validateRequest } from '../middleware/validation.js';
+```
+
+### 异步处理规范
+```javascript
+// ✅ 使用async/await
+export class UserController {
+  async createUser(req, res, next) {
+    try {
+      const { name, email, password } = req.body;
+      
+      // 参数验证
+      if (!name || !email || !password) {
+        return res.status(400).json({
+          success: false,
+          message: '缺少必要参数'
+        });
+      }
+
+      const user = await UserService.create({ name, email, password });
+      
+      res.status(201).json({
+        success: true,
+        data: user,
+        message: '用户创建成功'
+      });
+    } catch (error) {
+      next(error); // 传递给错误处理中间件
+    }
+  }
+}
+```
+
+## 错误处理机制
+### 全局错误处理中间件
+```javascript
+// middleware/errorHandler.js
+export const errorHandler = (err, req, res, next) => {
+  // 记录错误日志
+  console.error(`[${new Date().toISOString()}] ${err.message}`, {
+    stack: err.stack,
+    url: req.url,
+    method: req.method,
+    body: req.body
+  });
+
+  // 业务错误
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({
+      success: false,
+      message: '请求参数验证失败',
+      errors: err.details
+    });
+  }
+
+  // 数据库错误
+  if (err.code === 'ER_DUP_ENTRY') {
+    return res.status(409).json({
+      success: false,
+      message: '数据已存在'
+    });
+  }
+
+  // 默认服务器错误
+  res.status(500).json({
+    success: false,
+    message: '服务器内部错误'
+  });
+};
+```
+
+### 自定义错误类
+```javascript
+// utils/errors.js
+export class AppError extends Error {
+  constructor(message, statusCode = 500, code = 'INTERNAL_ERROR') {
+    super(message);
+    this.statusCode = statusCode;
+    this.code = code;
+    this.isOperational = true;
+    
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+export class ValidationError extends AppError {
+  constructor(message, details = []) {
+    super(message, 400, 'VALIDATION_ERROR');
+    this.details = details;
+  }
+}
+
+export class NotFoundError extends AppError {
+  constructor(resource = '资源') {
+    super(`${resource}不存在`, 404, 'NOT_FOUND');
+  }
+}
+```
+
+## API设计规范
+### RESTful API结构
+```javascript
+// routes/users.js
+import { Router } from 'express';
+import { UserController } from '../controllers/UserController.js';
+import { authMiddleware } from '../middleware/auth.js';
+import { validateUser } from '../middleware/validation.js';
+
+const router = Router();
+const userController = new UserController();
+
+// GET /api/users - 获取用户列表
+router.get('/', authMiddleware, userController.getUsers);
+
+// GET /api/users/:id - 获取单个用户
+router.get('/:id', authMiddleware, userController.getUserById);
+
+// POST /api/users - 创建用户
+router.post('/', validateUser, userController.createUser);
+
+// PUT /api/users/:id - 更新用户
+router.put('/:id', authMiddleware, validateUser, userController.updateUser);
+
+// DELETE /api/users/:id - 删除用户
+router.delete('/:id', authMiddleware, userController.deleteUser);
+
+export default router;
+```
+
+### 统一响应格式
+```javascript
+// utils/response.js
+export class ApiResponse {
+  static success(data = null, message = '操作成功', meta = {}) {
+    return {
+      success: true,
+      data,
+      message,
+      meta,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  static error(message = '操作失败', code = 'ERROR', details = null) {
+    return {
+      success: false,
+      message,
+      code,
+      details,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  static paginated(data, pagination) {
+    return this.success(data, '获取成功', {
+      pagination: {
+        page: pagination.page,
+        limit: pagination.limit,
+        total: pagination.total,
+        totalPages: Math.ceil(pagination.total / pagination.limit)
+      }
+    });
+  }
+}
+```
+
+## 数据库操作规范
+### Prisma ORM示例
+```javascript
+// services/UserService.js
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcrypt';
+import { ValidationError, NotFoundError } from '../utils/errors.js';
+
+const prisma = new PrismaClient();
+
+export class UserService {
+  static async create(userData) {
+    const { name, email, password } = userData;
+
+    // 检查邮箱是否已存在
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (existingUser) {
+      throw new ValidationError('邮箱已被注册');
+    }
+
+    // 密码加密
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true
+      }
+    });
+
+    return user;
+  }
+
+  static async findById(id) {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+        updatedAt: true
+      }
+    });
+
+    if (!user) {
+      throw new NotFoundError('用户');
+    }
+
+    return user;
+  }
+
+  static async findWithPagination(page = 1, limit = 10, search = '') {
+    const skip = (page - 1) * limit;
+    
+    const where = search ? {
+      OR: [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } }
+      ]
+    } : {};
+
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.user.count({ where })
+    ]);
+
+    return { users, total };
+  }
+}
+```
+
+## 安全实践
+### JWT认证中间件
+```javascript
+// middleware/auth.js
+import jwt from 'jsonwebtoken';
+import { AppError } from '../utils/errors.js';
+
+export const authMiddleware = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      throw new AppError('访问令牌缺失', 401, 'UNAUTHORIZED');
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // 可以在这里添加用户信息查询
+    req.user = decoded;
+    next();
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      return next(new AppError('无效的访问令牌', 401, 'INVALID_TOKEN'));
+    }
+    if (error.name === 'TokenExpiredError') {
+      return next(new AppError('访问令牌已过期', 401, 'TOKEN_EXPIRED'));
+    }
+    next(error);
+  }
+};
+```
+
+### 请求验证中间件
+```javascript
+// middleware/validation.js
+import Joi from 'joi';
+import { ValidationError } from '../utils/errors.js';
+
+export const validateUser = (req, res, next) => {
+  const schema = Joi.object({
+    name: Joi.string().min(2).max(50).required()
+      .messages({
+        'string.empty': '用户名不能为空',
+        'string.min': '用户名至少2个字符',
+        'string.max': '用户名不能超过50个字符'
+      }),
+    email: Joi.string().email().required()
+      .messages({
+        'string.email': '请提供有效的邮箱地址',
+        'string.empty': '邮箱不能为空'
+      }),
+    password: Joi.string().min(8).pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+      .required()
+      .messages({
+        'string.min': '密码至少8个字符',
+        'string.pattern.base': '密码必须包含大小写字母和数字'
+      })
+  });
+
+  const { error } = schema.validate(req.body);
+  if (error) {
+    const details = error.details.map(detail => ({
+      field: detail.path[0],
+      message: detail.message
+    }));
+    return next(new ValidationError('请求参数验证失败', details));
+  }
+
+  next();
+};
+```
+
+## 环境配置管理
+```javascript
+// config/database.js
+import { PrismaClient } from '@prisma/client';
+
+let prisma;
+
+if (process.env.NODE_ENV === 'production') {
+  prisma = new PrismaClient();
+} else {
+  // 开发环境复用连接
+  if (!global.__prisma) {
+    global.__prisma = new PrismaClient({
+      log: ['query', 'info', 'warn', 'error']
+    });
+  }
+  prisma = global.__prisma;
+}
+
+export default prisma;
+```
+
+```javascript
+// config/index.js
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+export const config = {
+  port: process.env.PORT || 3000,
+  nodeEnv: process.env.NODE_ENV || 'development',
+  
+  database: {
+    url: process.env.DATABASE_URL
+  },
+  
+  jwt: {
+    secret: process.env.JWT_SECRET,
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d'
+  },
+  
+  redis: {
+    url: process.env.REDIS_URL,
+    ttl: parseInt(process.env.CACHE_TTL) || 3600
+  },
+  
+  email: {
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT,
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
+  }
+};
+```
+
+## 测试规范
+```javascript
+// tests/services/UserService.test.js
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
+import { UserService } from '../../src/services/UserService.js';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+describe('UserService', () => {
+  beforeAll(async () => {
+    // 设置测试数据库
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
+  beforeEach(async () => {
+    // 清理测试数据
+    await prisma.user.deleteMany();
+  });
+
+  describe('create', () => {
+    it('应该成功创建用户', async () => {
+      const userData = {
+        name: '张三',
+        email: 'zhangsan@example.com',
+        password: 'Password123'
+      };
+
+      const user = await UserService.create(userData);
+
+      expect(user).toHaveProperty('id');
+      expect(user.name).toBe(userData.name);
+      expect(user.email).toBe(userData.email);
+      expect(user).not.toHaveProperty('password');
+    });
+
+    it('重复邮箱应该抛出验证错误', async () => {
+      const userData = {
+        name: '张三',
+        email: 'zhangsan@example.com',
+        password: 'Password123'
+      };
+
+      await UserService.create(userData);
+
+      await expect(UserService.create(userData))
+        .rejects
+        .toThrow('邮箱已被注册');
+    });
+  });
+});
+```
+
+## 部署和运维
+### Docker配置
+```dockerfile
+# Dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+
+# 复制package文件
+COPY package*.json ./
+RUN npm ci --only=production
+
+# 复制源代码
+COPY src/ ./src/
+COPY prisma/ ./prisma/
+
+# 生成Prisma客户端
+RUN npx prisma generate
+
+# 创建非root用户
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S nodejs -u 1001
+
+USER nodejs
+
+EXPOSE 3000
+
+CMD ["node", "src/server.js"]
+```
+
+### PM2配置
+```javascript
+// ecosystem.config.js
+module.exports = {
+  apps: [{
+    name: 'api-server',
+    script: 'src/server.js',
+    instances: 'max',
+    exec_mode: 'cluster',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 3000
+    },
+    error_file: './logs/err.log',
+    out_file: './logs/out.log',
+    log_file: './logs/combined.log',
+    time: true
+  }]
+};
+```

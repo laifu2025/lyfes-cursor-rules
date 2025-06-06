@@ -1,0 +1,291 @@
+# 来福哥的React开发规则
+
+## 项目结构规范
+- 组件目录：`src/components/`，按功能模块分组
+- 页面目录：`src/pages/`，对应路由页面
+- 工具函数：`src/utils/`，可复用的工具方法
+- 类型定义：`src/types/`，TypeScript类型定义
+- 样式文件：与组件同目录，使用`.module.css`后缀
+
+## 组件开发规范
+### 函数组件定义
+```tsx
+// ✅ 推荐写法
+interface UserCardProps {
+  user: User;
+  onEdit?: (user: User) => void;
+}
+
+const UserCard: React.FC<UserCardProps> = ({ user, onEdit }) => {
+  // 组件逻辑
+  return <div>{user.name}</div>;
+};
+
+export default UserCard;
+```
+
+### 组件命名规则
+- 组件文件：使用PascalCase，如 `UserCard.tsx`
+- 组件目录：小写+连字符，如 `user-card/`
+- 样式文件：`UserCard.module.css`
+- 测试文件：`UserCard.test.tsx`
+
+## Hooks使用最佳实践
+### useState规范
+```tsx
+// ✅ 基础类型
+const [count, setCount] = useState<number>(0);
+
+// ✅ 对象类型
+const [user, setUser] = useState<User | null>(null);
+
+// ✅ 数组类型
+const [items, setItems] = useState<Item[]>([]);
+```
+
+### useEffect规范
+```tsx
+// ✅ 数据获取
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      const data = await api.getUsers();
+      setUsers(data);
+    } catch (error) {
+      console.error('获取用户数据失败:', error);
+    }
+  };
+  
+  fetchData();
+}, []); // 明确依赖数组
+
+// ✅ 清理副作用
+useEffect(() => {
+  const timer = setInterval(() => {
+    // 定时器逻辑
+  }, 1000);
+  
+  return () => clearInterval(timer); // 清理函数
+}, []);
+```
+
+### 自定义Hooks
+```tsx
+// ✅ 自定义Hook示例
+function useUserData(userId: string) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        setLoading(true);
+        const userData = await api.getUser(userId);
+        setUser(userData);
+      } catch (err) {
+        setError('获取用户信息失败');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (userId) {
+      fetchUser();
+    }
+  }, [userId]);
+
+  return { user, loading, error };
+}
+```
+
+## 状态管理策略
+### 本地状态 vs 全局状态
+- 本地状态：组件内部UI状态、表单数据
+- 全局状态：用户信息、主题设置、购物车等跨组件数据
+
+### Context使用规范
+```tsx
+// ✅ Context定义
+interface ThemeContextType {
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
+}
+
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+// ✅ 自定义Hook
+export const useTheme = () => {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    throw new Error('useTheme must be used within ThemeProvider');
+  }
+  return context;
+};
+```
+
+## 性能优化指南
+### React.memo使用
+```tsx
+// ✅ 纯组件优化
+const UserItem = React.memo<UserItemProps>(({ user, onEdit }) => {
+  return (
+    <div>
+      <span>{user.name}</span>
+      <button onClick={() => onEdit(user)}>编辑</button>
+    </div>
+  );
+});
+```
+
+### useCallback和useMemo
+```tsx
+const UserList: React.FC<UserListProps> = ({ users, searchText }) => {
+  // ✅ 缓存计算结果
+  const filteredUsers = useMemo(() => {
+    return users.filter(user => 
+      user.name.toLowerCase().includes(searchText.toLowerCase())
+    );
+  }, [users, searchText]);
+
+  // ✅ 缓存事件处理函数
+  const handleUserEdit = useCallback((user: User) => {
+    // 编辑逻辑
+  }, []);
+
+  return (
+    <div>
+      {filteredUsers.map(user => (
+        <UserItem key={user.id} user={user} onEdit={handleUserEdit} />
+      ))}
+    </div>
+  );
+};
+```
+
+## 样式管理规范
+### CSS Modules使用
+```css
+/* UserCard.module.css */
+.container {
+  padding: 16px;
+  border-radius: 8px;
+  background-color: var(--background-color);
+}
+
+.title {
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--text-primary);
+}
+```
+
+```tsx
+// UserCard.tsx
+import styles from './UserCard.module.css';
+
+const UserCard = () => {
+  return (
+    <div className={styles.container}>
+      <h3 className={styles.title}>用户信息</h3>
+    </div>
+  );
+};
+```
+
+## 错误处理规范
+### Error Boundary
+```tsx
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class ErrorBoundary extends Component<PropsWithChildren, ErrorBoundaryState> {
+  constructor(props: PropsWithChildren) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('组件错误:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <div>抱歉，页面出现了错误</div>;
+    }
+
+    return this.props.children;
+  }
+}
+```
+
+## TypeScript使用规范
+### Props类型定义
+```tsx
+// ✅ 基础Props
+interface ButtonProps {
+  children: React.ReactNode;
+  variant?: 'primary' | 'secondary';
+  disabled?: boolean;
+  onClick?: () => void;
+}
+
+// ✅ 泛型Props
+interface ListProps<T> {
+  items: T[];
+  renderItem: (item: T) => React.ReactNode;
+  keyExtractor: (item: T) => string | number;
+}
+```
+
+## 测试规范
+### 组件测试
+```tsx
+// UserCard.test.tsx
+import { render, screen, fireEvent } from '@testing-library/react';
+import UserCard from './UserCard';
+
+describe('UserCard', () => {
+  const mockUser = {
+    id: '1',
+    name: '张三',
+    email: 'zhangsan@example.com'
+  };
+
+  it('应该正确显示用户信息', () => {
+    render(<UserCard user={mockUser} />);
+    
+    expect(screen.getByText('张三')).toBeInTheDocument();
+    expect(screen.getByText('zhangsan@example.com')).toBeInTheDocument();
+  });
+
+  it('点击编辑按钮应该调用onEdit回调', () => {
+    const mockOnEdit = jest.fn();
+    render(<UserCard user={mockUser} onEdit={mockOnEdit} />);
+    
+    fireEvent.click(screen.getByText('编辑'));
+    expect(mockOnEdit).toHaveBeenCalledWith(mockUser);
+  });
+});
+```
+
+## 代码分割和懒加载
+```tsx
+// ✅ 路由级别的代码分割
+const HomePage = lazy(() => import('../pages/HomePage'));
+const UserPage = lazy(() => import('../pages/UserPage'));
+
+// ✅ 在Router中使用Suspense
+<Suspense fallback={<div>页面加载中...</div>}>
+  <Routes>
+    <Route path="/" element={<HomePage />} />
+    <Route path="/users" element={<UserPage />} />
+  </Routes>
+</Suspense>
+```

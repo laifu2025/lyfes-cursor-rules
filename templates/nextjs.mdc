@@ -1,0 +1,854 @@
+# 来福哥的Next.js开发规则
+
+## 项目结构规范（App Router）
+```
+app/
+├── (dashboard)/         # 路由分组
+│   ├── analytics/
+│   └── settings/
+├── (auth)/             # 认证相关路由分组  
+│   ├── login/
+│   └── register/
+├── api/                # API路由
+│   ├── auth/
+│   ├── users/
+│   └── products/
+├── globals.css         # 全局样式
+├── layout.tsx          # 根布局
+├── loading.tsx         # 全局加载组件
+├── error.tsx           # 全局错误组件
+├── not-found.tsx       # 404页面
+└── page.tsx            # 首页
+
+components/
+├── ui/                 # 基础UI组件
+├── forms/              # 表单组件
+├── layout/             # 布局相关组件
+└── features/           # 功能组件
+
+lib/
+├── auth.ts             # 认证工具
+├── db.ts               # 数据库连接
+├── utils.ts            # 工具函数
+└── validations.ts      # 验证规则
+
+types/
+├── auth.ts             # 认证相关类型
+├── api.ts              # API相关类型
+└── global.ts           # 全局类型定义
+```
+
+## 页面和布局规范
+### 根布局组件
+```tsx
+// app/layout.tsx
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+import { Providers } from '@/components/providers'
+import { Navigation } from '@/components/layout/Navigation'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: '来福哥的应用',
+  description: '基于Next.js构建的现代Web应用',
+  keywords: ['Next.js', 'React', 'TypeScript'],
+  authors: [{ name: '来福哥' }],
+  openGraph: {
+    title: '来福哥的应用',
+    description: '基于Next.js构建的现代Web应用',
+    type: 'website',
+    locale: 'zh_CN',
+  }
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="zh-CN">
+      <body className={inter.className}>
+        <Providers>
+          <div className="min-h-screen bg-gray-50">
+            <Navigation />
+            <main className="container mx-auto px-4 py-8">
+              {children}
+            </main>
+          </div>
+        </Providers>
+      </body>
+    </html>
+  )
+}
+```
+
+### 页面组件规范
+```tsx
+// app/users/page.tsx
+import { Suspense } from 'react'
+import type { Metadata } from 'next'
+import { UserList } from '@/components/features/users/UserList'
+import { UserListSkeleton } from '@/components/ui/skeletons'
+import { SearchParams } from '@/types/global'
+
+interface PageProps {
+  searchParams: SearchParams
+}
+
+export const metadata: Metadata = {
+  title: '用户管理 - 来福哥的应用',
+  description: '用户列表和管理功能'
+}
+
+export default async function UsersPage({ searchParams }: PageProps) {
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold text-gray-900">用户管理</h1>
+        <CreateUserButton />
+      </div>
+      
+      <Suspense fallback={<UserListSkeleton />}>
+        <UserList searchParams={searchParams} />
+      </Suspense>
+    </div>
+  )
+}
+```
+
+### 动态路由
+```tsx
+// app/users/[id]/page.tsx
+import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
+import { getUserById } from '@/lib/users'
+import { UserDetail } from '@/components/features/users/UserDetail'
+
+interface PageProps {
+  params: { id: string }
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const user = await getUserById(params.id)
+  
+  if (!user) {
+    return {
+      title: '用户未找到'
+    }
+  }
+
+  return {
+    title: `${user.name} - 用户详情`,
+    description: `查看用户 ${user.name} 的详细信息`
+  }
+}
+
+export default async function UserDetailPage({ params }: PageProps) {
+  const user = await getUserById(params.id)
+  
+  if (!user) {
+    notFound()
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <UserDetail user={user} />
+    </div>
+  )
+}
+
+// 静态路径生成（如果适用）
+export async function generateStaticParams() {
+  const users = await getAllUsers()
+  
+  return users.map((user) => ({
+    id: user.id,
+  }))
+}
+```
+
+## API路由规范
+### RESTful API结构
+```typescript
+// app/api/users/route.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
+import { getUsersWithPagination, createUser } from '@/lib/users'
+import { ApiResponse, PaginationParams } from '@/types/api'
+
+// 验证schema
+const CreateUserSchema = z.object({
+  name: z.string().min(2, '姓名至少2个字符'),
+  email: z.string().email('邮箱格式不正确'),
+  department: z.string().min(1, '部门不能为空')
+})
+
+// GET /api/users
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    
+    const pagination: PaginationParams = {
+      page: parseInt(searchParams.get('page') || '1'),
+      limit: parseInt(searchParams.get('limit') || '10'),
+      search: searchParams.get('search') || ''
+    }
+
+    const result = await getUsersWithPagination(pagination)
+
+    return NextResponse.json<ApiResponse<typeof result>>({
+      success: true,
+      data: result,
+      message: '获取用户列表成功'
+    })
+  } catch (error) {
+    console.error('获取用户列表失败:', error)
+    
+    return NextResponse.json<ApiResponse<null>>({
+      success: false,
+      data: null,
+      message: '获取用户列表失败'
+    }, { status: 500 })
+  }
+}
+
+// POST /api/users
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    
+    // 数据验证
+    const validationResult = CreateUserSchema.safeParse(body)
+    if (!validationResult.success) {
+      return NextResponse.json<ApiResponse<null>>({
+        success: false,
+        data: null,
+        message: '请求参数验证失败',
+        errors: validationResult.error.errors
+      }, { status: 400 })
+    }
+
+    const user = await createUser(validationResult.data)
+
+    return NextResponse.json<ApiResponse<typeof user>>({
+      success: true,
+      data: user,
+      message: '用户创建成功'
+    }, { status: 201 })
+  } catch (error) {
+    console.error('创建用户失败:', error)
+    
+    return NextResponse.json<ApiResponse<null>>({
+      success: false,
+      data: null,
+      message: '创建用户失败'
+    }, { status: 500 })
+  }
+}
+```
+
+### 动态API路由
+```typescript
+// app/api/users/[id]/route.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { getUserById, updateUser, deleteUser } from '@/lib/users'
+import { ApiResponse } from '@/types/api'
+
+interface RouteParams {
+  params: { id: string }
+}
+
+// GET /api/users/[id]
+export async function GET(
+  request: NextRequest,
+  { params }: RouteParams
+) {
+  try {
+    const user = await getUserById(params.id)
+    
+    if (!user) {
+      return NextResponse.json<ApiResponse<null>>({
+        success: false,
+        data: null,
+        message: '用户不存在'
+      }, { status: 404 })
+    }
+
+    return NextResponse.json<ApiResponse<typeof user>>({
+      success: true,
+      data: user,
+      message: '获取用户信息成功'
+    })
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+    
+    return NextResponse.json<ApiResponse<null>>({
+      success: false,
+      data: null,
+      message: '获取用户信息失败'
+    }, { status: 500 })
+  }
+}
+
+// PUT /api/users/[id]
+export async function PUT(
+  request: NextRequest,
+  { params }: RouteParams
+) {
+  try {
+    const body = await request.json()
+    const updatedUser = await updateUser(params.id, body)
+
+    return NextResponse.json<ApiResponse<typeof updatedUser>>({
+      success: true,
+      data: updatedUser,
+      message: '用户更新成功'
+    })
+  } catch (error) {
+    console.error('用户更新失败:', error)
+    
+    return NextResponse.json<ApiResponse<null>>({
+      success: false,
+      data: null,
+      message: '用户更新失败'
+    }, { status: 500 })
+  }
+}
+
+// DELETE /api/users/[id]
+export async function DELETE(
+  request: NextRequest,
+  { params }: RouteParams
+) {
+  try {
+    await deleteUser(params.id)
+
+    return NextResponse.json<ApiResponse<null>>({
+      success: true,
+      data: null,
+      message: '用户删除成功'
+    })
+  } catch (error) {
+    console.error('用户删除失败:', error)
+    
+    return NextResponse.json<ApiResponse<null>>({
+      success: false,
+      data: null,
+      message: '用户删除失败'
+    }, { status: 500 })
+  }
+}
+```
+
+## 数据获取规范
+### Server Components数据获取
+```tsx
+// app/dashboard/page.tsx
+import { getDashboardData } from '@/lib/dashboard'
+import { DashboardMetrics } from '@/components/features/dashboard/DashboardMetrics'
+import { RecentActivity } from '@/components/features/dashboard/RecentActivity'
+
+// 这是一个Server Component，可以直接使用async/await
+export default async function DashboardPage() {
+  // 并行获取数据
+  const [metrics, recentActivity] = await Promise.all([
+    getDashboardData(),
+    getRecentActivity()
+  ])
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold">仪表板</h1>
+      
+      <DashboardMetrics data={metrics} />
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <RecentActivity activities={recentActivity} />
+        <div>其他内容</div>
+      </div>
+    </div>
+  )
+}
+```
+
+### 客户端数据获取
+```tsx
+// components/features/users/UserList.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { User } from '@/types/user'
+import { ApiResponse } from '@/types/api'
+
+export function UserList() {
+  const searchParams = useSearchParams()
+  const [users, setUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const page = searchParams.get('page') || '1'
+        const search = searchParams.get('search') || ''
+        
+        const response = await fetch(`/api/users?page=${page}&search=${search}`)
+        const result: ApiResponse<{ users: User[]; total: number }> = await response.json()
+        
+        if (result.success) {
+          setUsers(result.data.users)
+        } else {
+          setError(result.message)
+        }
+      } catch (err) {
+        setError('获取用户列表失败')
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchUsers()
+  }, [searchParams])
+
+  if (loading) return <div>加载中...</div>
+  if (error) return <div className="text-red-500">错误: {error}</div>
+
+  return (
+    <div className="space-y-4">
+      {users.map(user => (
+        <UserCard key={user.id} user={user} />
+      ))}
+    </div>
+  )
+}
+```
+
+### SWR/TanStack Query使用
+```tsx
+// hooks/useUsers.ts
+import useSWR from 'swr'
+import { User } from '@/types/user'
+import { ApiResponse } from '@/types/api'
+
+interface UseUsersParams {
+  page?: number
+  search?: string
+  limit?: number
+}
+
+const fetcher = async (url: string): Promise<ApiResponse<{ users: User[]; total: number }>> => {
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error('获取数据失败')
+  }
+  return response.json()
+}
+
+export function useUsers(params: UseUsersParams = {}) {
+  const { page = 1, search = '', limit = 10 } = params
+  
+  const queryString = new URLSearchParams({
+    page: page.toString(),
+    search,
+    limit: limit.toString()
+  }).toString()
+
+  const { data, error, isLoading, mutate } = useSWR(
+    `/api/users?${queryString}`,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: true,
+      errorRetryCount: 3
+    }
+  )
+
+  return {
+    users: data?.data.users || [],
+    total: data?.data.total || 0,
+    isLoading,
+    error: error?.message || null,
+    mutate
+  }
+}
+
+// 组件中使用
+export function UserListWithSWR() {
+  const { users, isLoading, error } = useUsers({ page: 1, search: '' })
+
+  if (isLoading) return <div>加载中...</div>
+  if (error) return <div>错误: {error}</div>
+
+  return (
+    <div>
+      {users.map(user => (
+        <UserCard key={user.id} user={user} />
+      ))}
+    </div>
+  )
+}
+```
+
+## 认证和授权
+### NextAuth.js集成
+```typescript
+// lib/auth.ts
+import { NextAuthOptions } from 'next-auth'
+import { PrismaAdapter } from '@next-auth/prisma-adapter'
+import GoogleProvider from 'next-auth/providers/google'
+import CredentialsProvider from 'next-auth/providers/credentials'
+import { prisma } from '@/lib/db'
+import { verifyPassword } from '@/lib/auth-utils'
+
+export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma),
+  providers: [
+    GoogleProvider({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    CredentialsProvider({
+      name: 'credentials',
+      credentials: {
+        email: { label: '邮箱', type: 'email' },
+        password: { label: '密码', type: 'password' }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          return null
+        }
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email }
+        })
+
+        if (!user || !await verifyPassword(credentials.password, user.password)) {
+          return null
+        }
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role
+        }
+      }
+    })
+  ],
+  session: {
+    strategy: 'jwt'
+  },
+  pages: {
+    signIn: '/login',
+    signOut: '/logout',
+    error: '/auth/error'
+  },
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.role = user.role
+      }
+      return token
+    },
+    async session({ session, token }) {
+      if (token) {
+        session.user.id = token.sub!
+        session.user.role = token.role as string
+      }
+      return session
+    }
+  }
+}
+```
+
+### 中间件认证
+```typescript
+// middleware.ts
+import { withAuth } from 'next-auth/middleware'
+import { NextResponse } from 'next/server'
+
+export default withAuth(
+  function middleware(req) {
+    // 检查用户角色权限
+    if (req.nextUrl.pathname.startsWith('/admin') && 
+        req.nextauth.token?.role !== 'admin') {
+      return NextResponse.rewrite(new URL('/unauthorized', req.url))
+    }
+  },
+  {
+    callbacks: {
+      authorized: ({ token, req }) => {
+        // 需要认证的路径
+        const protectedPaths = ['/dashboard', '/profile', '/admin']
+        const isProtectedPath = protectedPaths.some(path => 
+          req.nextUrl.pathname.startsWith(path)
+        )
+        
+        return !isProtectedPath || !!token
+      }
+    }
+  }
+)
+
+export const config = {
+  matcher: [
+    '/dashboard/:path*',
+    '/profile/:path*',
+    '/admin/:path*'
+  ]
+}
+```
+
+## 样式和UI规范
+### Tailwind CSS配置
+```javascript
+// tailwind.config.js
+const { fontFamily } = require('tailwindcss/defaultTheme')
+
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['var(--font-inter)', ...fontFamily.sans],
+      },
+      colors: {
+        border: 'hsl(var(--border))',
+        input: 'hsl(var(--input))',
+        ring: 'hsl(var(--ring))',
+        background: 'hsl(var(--background))',
+        foreground: 'hsl(var(--foreground))',
+        primary: {
+          DEFAULT: 'hsl(var(--primary))',
+          foreground: 'hsl(var(--primary-foreground))',
+        },
+        secondary: {
+          DEFAULT: 'hsl(var(--secondary))',
+          foreground: 'hsl(var(--secondary-foreground))',
+        },
+      },
+      borderRadius: {
+        lg: 'var(--radius)',
+        md: 'calc(var(--radius) - 2px)',
+        sm: 'calc(var(--radius) - 4px)',
+      },
+    },
+  },
+  plugins: [require('tailwindcss-animate')],
+}
+```
+
+### CSS变量管理
+```css
+/* app/globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --primary: 222.2 47.4% 11.2%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222.2 84% 4.9%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 210 40% 96%;
+  --accent-foreground: 222.2 84% 4.9%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 222.2 84% 4.9%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --primary: 210 40% 98%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  /* ... 其他暗色主题变量 */
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+  }
+  
+  .btn-primary {
+    @apply btn bg-primary text-primary-foreground hover:bg-primary/90;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-secondary text-secondary-foreground hover:bg-secondary/80;
+  }
+}
+```
+
+## 性能优化
+### 图片优化
+```tsx
+// components/ui/OptimizedImage.tsx
+import Image from 'next/image'
+import { useState } from 'react'
+
+interface OptimizedImageProps {
+  src: string
+  alt: string
+  width?: number
+  height?: number
+  className?: string
+  priority?: boolean
+}
+
+export function OptimizedImage({
+  src,
+  alt,
+  width,
+  height,
+  className,
+  priority = false
+}: OptimizedImageProps) {
+  const [isLoading, setIsLoading] = useState(true)
+
+  return (
+    <div className={`relative overflow-hidden ${className}`}>
+      <Image
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        priority={priority}
+        className={`
+          duration-700 ease-in-out
+          ${isLoading ? 'scale-110 blur-2xl grayscale' : 'scale-100 blur-0 grayscale-0'}
+        `}
+        onLoad={() => setIsLoading(false)}
+        placeholder="blur"
+        blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+      />
+    </div>
+  )
+}
+```
+
+### 代码分割和懒加载
+```tsx
+// components/LazyComponents.tsx
+import dynamic from 'next/dynamic'
+import { ComponentPropsWithoutRef } from 'react'
+
+// 懒加载重型组件
+const Chart = dynamic(() => import('./Chart'), {
+  loading: () => <div className="animate-pulse bg-gray-200 h-64 rounded" />,
+  ssr: false // 禁用服务端渲染（如果组件需要浏览器API）
+})
+
+const DataTable = dynamic(() => import('./DataTable'), {
+  loading: () => <TableSkeleton />,
+})
+
+// 条件懒加载
+const AdminPanel = dynamic(() => import('./AdminPanel'), {
+  loading: () => <div>加载管理面板...</div>,
+})
+
+interface ConditionalAdminPanelProps extends ComponentPropsWithoutRef<'div'> {
+  userRole: string
+}
+
+export function ConditionalAdminPanel({ userRole, ...props }: ConditionalAdminPanelProps) {
+  if (userRole !== 'admin') {
+    return null
+  }
+
+  return <AdminPanel {...props} />
+}
+```
+
+## 环境配置和部署
+### 环境变量管理
+```typescript
+// lib/env.ts
+import { z } from 'zod'
+
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']),
+  DATABASE_URL: z.string().url(),
+  NEXTAUTH_SECRET: z.string().min(1),
+  NEXTAUTH_URL: z.string().url(),
+  GOOGLE_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_SECRET: z.string().min(1),
+  REDIS_URL: z.string().url().optional(),
+  EMAIL_SERVER: z.string().optional(),
+})
+
+export const env = envSchema.parse(process.env)
+```
+
+### Docker配置
+```dockerfile
+# Dockerfile
+FROM node:18-alpine AS base
+
+# Install dependencies only when needed
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+ENV NEXT_TELEMETRY_DISABLED 1
+
+RUN npm run build
+
+# Production image, copy all the files and run next
+FROM base AS runner
+WORKDIR /app
+
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+
+# Set the correct permission for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
+
+CMD ["node", "server.js"]
+```

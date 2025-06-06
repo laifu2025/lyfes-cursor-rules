@@ -1,0 +1,995 @@
+# 来福哥的Vue.js开发规则
+
+## 项目结构规范
+```
+src/
+├── components/          # 公共组件
+│   ├── ui/             # UI基础组件
+│   └── business/       # 业务组件
+├── views/              # 页面视图
+├── layouts/            # 布局组件
+├── router/             # 路由配置
+├── stores/             # Pinia状态管理
+├── composables/        # 组合式函数
+├── utils/              # 工具函数
+├── services/           # API服务
+├── types/              # TypeScript类型定义
+├── styles/             # 全局样式
+└── assets/             # 静态资源
+```
+
+## 组件开发规范
+### 单文件组件结构
+```vue
+<!-- UserCard.vue -->
+<template>
+  <div class="user-card">
+    <div class="user-card__avatar">
+      <img :src="user.avatar" :alt="user.name" />
+    </div>
+    <div class="user-card__info">
+      <h3 class="user-card__name">{{ user.name }}</h3>
+      <p class="user-card__email">{{ user.email }}</p>
+      <div class="user-card__actions">
+        <button @click="handleEdit">编辑</button>
+        <button @click="handleDelete" class="danger">删除</button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed } from 'vue'
+
+// Props定义
+interface Props {
+  user: User
+  readonly?: boolean
+}
+
+// 使用默认值
+const props = withDefaults(defineProps<Props>(), {
+  readonly: false
+})
+
+// Emits定义
+interface Emits {
+  edit: [user: User]
+  delete: [userId: string]
+}
+
+const emit = defineEmits<Emits>()
+
+// 计算属性
+const isEditable = computed(() => !props.readonly && props.user.status === 'active')
+
+// 事件处理
+const handleEdit = () => {
+  if (isEditable.value) {
+    emit('edit', props.user)
+  }
+}
+
+const handleDelete = () => {
+  if (confirm(`确定要删除用户 ${props.user.name} 吗？`)) {
+    emit('delete', props.user.id)
+  }
+}
+</script>
+
+<style scoped lang="scss">
+.user-card {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+
+  &__avatar {
+    img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+  }
+
+  &__info {
+    flex: 1;
+  }
+
+  &__name {
+    margin: 0 0 8px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+  }
+
+  &__email {
+    margin: 0 0 16px;
+    color: #6b7280;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 8px;
+
+    button {
+      padding: 8px 16px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+
+      &:hover {
+        background: #f9fafb;
+      }
+
+      &.danger {
+        color: #dc2626;
+        border-color: #dc2626;
+
+        &:hover {
+          background: #fef2f2;
+        }
+      }
+    }
+  }
+}
+</style>
+```
+
+### 组件命名规范
+```typescript
+// ✅ 推荐的组件命名
+// 文件名：UserCard.vue
+// 组件名：UserCard（自动推断）
+
+// 多单词组件名
+// 文件名：UserProfileCard.vue
+// 文件名：ProductListItem.vue
+
+// 基础UI组件添加前缀
+// 文件名：BaseButton.vue
+// 文件名：BaseInput.vue
+
+// 业务组件按功能分组
+// user/UserCard.vue
+// order/OrderList.vue
+// product/ProductGrid.vue
+```
+
+## Composition API最佳实践
+### 响应式数据管理
+```typescript
+// composables/useUser.ts
+import { ref, reactive, computed, watch } from 'vue'
+import type { User, UserFilters } from '@/types/user'
+
+export function useUser() {
+  // 基础响应式数据
+  const users = ref<User[]>([])
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+  
+  // 复杂对象使用reactive
+  const filters = reactive<UserFilters>({
+    keyword: '',
+    status: 'all',
+    department: ''
+  })
+
+  // 计算属性
+  const filteredUsers = computed(() => {
+    return users.value.filter(user => {
+      if (filters.keyword && !user.name.includes(filters.keyword)) {
+        return false
+      }
+      if (filters.status !== 'all' && user.status !== filters.status) {
+        return false
+      }
+      if (filters.department && user.department !== filters.department) {
+        return false
+      }
+      return true
+    })
+  })
+
+  const userCount = computed(() => filteredUsers.value.length)
+
+  // 异步操作
+  const fetchUsers = async () => {
+    try {
+      loading.value = true
+      error.value = null
+      const response = await userService.getUsers()
+      users.value = response.data
+    } catch (err) {
+      error.value = '获取用户列表失败'
+      console.error('获取用户失败:', err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const createUser = async (userData: Omit<User, 'id'>) => {
+    try {
+      loading.value = true
+      const newUser = await userService.createUser(userData)
+      users.value.push(newUser)
+      return newUser
+    } catch (err) {
+      error.value = '创建用户失败'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // 监听器
+  watch(
+    () => filters.keyword,
+    (newKeyword, oldKeyword) => {
+      console.log(`搜索关键词从 "${oldKeyword}" 变更为 "${newKeyword}"`)
+    },
+    { immediate: true }
+  )
+
+  // 深度监听
+  watch(
+    filters,
+    (newFilters) => {
+      console.log('筛选条件变更:', newFilters)
+      // 可以在这里触发搜索
+    },
+    { deep: true }
+  )
+
+  return {
+    // 响应式数据
+    users: readonly(users),
+    loading: readonly(loading),
+    error: readonly(error),
+    filters,
+    
+    // 计算属性
+    filteredUsers,
+    userCount,
+    
+    // 方法
+    fetchUsers,
+    createUser
+  }
+}
+```
+
+### 生命周期钩子
+```vue
+<script setup lang="ts">
+import { 
+  onMounted, 
+  onUnmounted, 
+  onBeforeMount,
+  onBeforeUnmount,
+  onUpdated,
+  watch 
+} from 'vue'
+
+// 组件挂载前
+onBeforeMount(() => {
+  console.log('组件即将挂载')
+})
+
+// 组件挂载后
+onMounted(async () => {
+  console.log('组件已挂载')
+  
+  // 获取初始数据
+  await fetchUsers()
+  
+  // 设置定时器
+  const timer = setInterval(() => {
+    // 定期刷新数据
+    refreshData()
+  }, 30000)
+
+  // 在卸载时清理定时器
+  onBeforeUnmount(() => {
+    clearInterval(timer)
+  })
+})
+
+// 组件更新后
+onUpdated(() => {
+  console.log('组件已更新')
+})
+
+// 组件卸载前
+onBeforeUnmount(() => {
+  console.log('组件即将卸载')
+  // 清理工作
+})
+
+// 组件卸载后
+onUnmounted(() => {
+  console.log('组件已卸载')
+})
+</script>
+```
+
+## 状态管理（Pinia）
+### Store定义
+```typescript
+// stores/user.ts
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import type { User, UserFilters } from '@/types/user'
+import { userService } from '@/services/user'
+
+export const useUserStore = defineStore('user', () => {
+  // State
+  const users = ref<User[]>([])
+  const currentUser = ref<User | null>(null)
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+
+  // Getters
+  const activeUsers = computed(() => 
+    users.value.filter(user => user.status === 'active')
+  )
+
+  const userById = computed(() => 
+    (id: string) => users.value.find(user => user.id === id)
+  )
+
+  const userCount = computed(() => users.value.length)
+
+  // Actions
+  const fetchUsers = async () => {
+    try {
+      loading.value = true
+      error.value = null
+      const response = await userService.getUsers()
+      users.value = response.data
+    } catch (err) {
+      error.value = '获取用户列表失败'
+      console.error(err)
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const createUser = async (userData: Omit<User, 'id'>) => {
+    try {
+      loading.value = true
+      const newUser = await userService.createUser(userData)
+      users.value.push(newUser)
+      return newUser
+    } catch (err) {
+      error.value = '创建用户失败'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const updateUser = async (id: string, userData: Partial<User>) => {
+    try {
+      loading.value = true
+      const updatedUser = await userService.updateUser(id, userData)
+      const index = users.value.findIndex(user => user.id === id)
+      if (index !== -1) {
+        users.value[index] = updatedUser
+      }
+      return updatedUser
+    } catch (err) {
+      error.value = '更新用户失败'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const deleteUser = async (id: string) => {
+    try {
+      loading.value = true
+      await userService.deleteUser(id)
+      const index = users.value.findIndex(user => user.id === id)
+      if (index !== -1) {
+        users.value.splice(index, 1)
+      }
+    } catch (err) {
+      error.value = '删除用户失败'
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const setCurrentUser = (user: User | null) => {
+    currentUser.value = user
+  }
+
+  const clearError = () => {
+    error.value = null
+  }
+
+  // 重置store
+  const $reset = () => {
+    users.value = []
+    currentUser.value = null
+    loading.value = false
+    error.value = null
+  }
+
+  return {
+    // State
+    users,
+    currentUser,
+    loading,
+    error,
+    
+    // Getters
+    activeUsers,
+    userById,
+    userCount,
+    
+    // Actions
+    fetchUsers,
+    createUser,
+    updateUser,
+    deleteUser,
+    setCurrentUser,
+    clearError,
+    $reset
+  }
+})
+```
+
+### Store使用
+```vue
+<script setup lang="ts">
+import { useUserStore } from '@/stores/user'
+import { storeToRefs } from 'pinia'
+
+const userStore = useUserStore()
+
+// 解构响应式数据（需要使用storeToRefs）
+const { users, loading, error, activeUsers } = storeToRefs(userStore)
+
+// 解构方法（不需要storeToRefs）
+const { fetchUsers, createUser, updateUser, deleteUser } = userStore
+
+// 组件挂载时获取数据
+onMounted(() => {
+  fetchUsers()
+})
+</script>
+```
+
+## 路由管理
+### 路由配置
+```typescript
+// router/index.ts
+import { createRouter, createWebHistory } from 'vue-router'
+import type { RouteRecordRaw } from 'vue-router'
+
+const routes: RouteRecordRaw[] = [
+  {
+    path: '/',
+    name: 'Home',
+    component: () => import('@/views/HomePage.vue'),
+    meta: {
+      title: '首页',
+      requiresAuth: false
+    }
+  },
+  {
+    path: '/users',
+    name: 'Users',
+    component: () => import('@/layouts/DefaultLayout.vue'),
+    meta: {
+      title: '用户管理',
+      requiresAuth: true
+    },
+    children: [
+      {
+        path: '',
+        name: 'UserList',
+        component: () => import('@/views/user/UserList.vue'),
+        meta: {
+          title: '用户列表'
+        }
+      },
+      {
+        path: 'create',
+        name: 'UserCreate',
+        component: () => import('@/views/user/UserCreate.vue'),
+        meta: {
+          title: '创建用户'
+        }
+      },
+      {
+        path: ':id',
+        name: 'UserDetail',
+        component: () => import('@/views/user/UserDetail.vue'),
+        meta: {
+          title: '用户详情'
+        },
+        props: true
+      },
+      {
+        path: ':id/edit',
+        name: 'UserEdit',
+        component: () => import('@/views/user/UserEdit.vue'),
+        meta: {
+          title: '编辑用户'
+        },
+        props: true
+      }
+    ]
+  }
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) {
+      return savedPosition
+    } else {
+      return { top: 0 }
+    }
+  }
+})
+
+// 路由守卫
+router.beforeEach((to, from, next) => {
+  // 设置页面标题
+  if (to.meta.title) {
+    document.title = `${to.meta.title} - 用户管理系统`
+  }
+
+  // 权限检查
+  if (to.meta.requiresAuth) {
+    const authStore = useAuthStore()
+    if (!authStore.isAuthenticated) {
+      next('/login')
+      return
+    }
+  }
+
+  next()
+})
+
+export default router
+```
+
+### 路由组合式函数
+```typescript
+// composables/useRouter.ts
+import { useRouter, useRoute } from 'vue-router'
+import type { RouteLocationRaw } from 'vue-router'
+
+export function useNavigation() {
+  const router = useRouter()
+  const route = useRoute()
+
+  const navigateTo = (to: RouteLocationRaw) => {
+    router.push(to)
+  }
+
+  const goBack = () => {
+    router.back()
+  }
+
+  const replace = (to: RouteLocationRaw) => {
+    router.replace(to)
+  }
+
+  const reload = () => {
+    router.go(0)
+  }
+
+  // 获取当前路由参数
+  const getParam = (key: string): string => {
+    return route.params[key] as string
+  }
+
+  const getQuery = (key: string): string => {
+    return route.query[key] as string
+  }
+
+  return {
+    route,
+    navigateTo,
+    goBack,
+    replace,
+    reload,
+    getParam,
+    getQuery
+  }
+}
+```
+
+## 表单处理
+### 表单验证
+```vue
+<template>
+  <form @submit.prevent="handleSubmit" class="user-form">
+    <div class="form-group">
+      <label for="name">姓名 *</label>
+      <input
+        id="name"
+        v-model="form.name"
+        type="text"
+        :class="{ error: errors.name }"
+        @blur="validateField('name')"
+      />
+      <span v-if="errors.name" class="error-message">{{ errors.name }}</span>
+    </div>
+
+    <div class="form-group">
+      <label for="email">邮箱 *</label>
+      <input
+        id="email"
+        v-model="form.email"
+        type="email"
+        :class="{ error: errors.email }"
+        @blur="validateField('email')"
+      />
+      <span v-if="errors.email" class="error-message">{{ errors.email }}</span>
+    </div>
+
+    <div class="form-actions">
+      <button type="button" @click="handleReset">重置</button>
+      <button type="submit" :disabled="!isValid || loading">
+        {{ loading ? '提交中...' : '提交' }}
+      </button>
+    </div>
+  </form>
+</template>
+
+<script setup lang="ts">
+import { reactive, computed } from 'vue'
+
+interface UserForm {
+  name: string
+  email: string
+  phone: string
+}
+
+interface FormErrors {
+  name?: string
+  email?: string
+  phone?: string
+}
+
+// 表单数据
+const form = reactive<UserForm>({
+  name: '',
+  email: '',
+  phone: ''
+})
+
+// 表单错误
+const errors = reactive<FormErrors>({})
+
+// 加载状态
+const loading = ref(false)
+
+// 验证规则
+const validationRules = {
+  name: (value: string) => {
+    if (!value) return '姓名不能为空'
+    if (value.length < 2) return '姓名至少2个字符'
+    if (value.length > 50) return '姓名不能超过50个字符'
+    return null
+  },
+  email: (value: string) => {
+    if (!value) return '邮箱不能为空'
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(value)) return '邮箱格式不正确'
+    return null
+  },
+  phone: (value: string) => {
+    if (value && !/^1[3-9]\d{9}$/.test(value)) {
+      return '手机号格式不正确'
+    }
+    return null
+  }
+}
+
+// 验证单个字段
+const validateField = (field: keyof UserForm) => {
+  const rule = validationRules[field]
+  if (rule) {
+    const error = rule(form[field])
+    if (error) {
+      errors[field] = error
+    } else {
+      delete errors[field]
+    }
+  }
+}
+
+// 验证所有字段
+const validateForm = () => {
+  Object.keys(form).forEach(field => {
+    validateField(field as keyof UserForm)
+  })
+}
+
+// 表单是否有效
+const isValid = computed(() => {
+  return Object.keys(errors).length === 0 && 
+         form.name && 
+         form.email
+})
+
+// 提交表单
+const emit = defineEmits<{
+  submit: [data: UserForm]
+}>()
+
+const handleSubmit = async () => {
+  validateForm()
+  
+  if (!isValid.value) {
+    return
+  }
+
+  try {
+    loading.value = true
+    emit('submit', { ...form })
+  } finally {
+    loading.value = false
+  }
+}
+
+// 重置表单
+const handleReset = () => {
+  Object.keys(form).forEach(key => {
+    form[key as keyof UserForm] = ''
+  })
+  Object.keys(errors).forEach(key => {
+    delete errors[key as keyof FormErrors]
+  })
+}
+</script>
+```
+
+## 性能优化
+### 虚拟列表
+```vue
+<!-- VirtualList.vue -->
+<template>
+  <div
+    ref="containerRef"
+    class="virtual-list"
+    @scroll="handleScroll"
+  >
+    <div
+      class="virtual-list-phantom"
+      :style="{ height: totalHeight + 'px' }"
+    ></div>
+    
+    <div
+      class="virtual-list-content"
+      :style="{ transform: `translateY(${startOffset}px)` }"
+    >
+      <div
+        v-for="item in visibleItems"
+        :key="item.id"
+        class="virtual-list-item"
+        :style="{ height: itemHeight + 'px' }"
+      >
+        <slot :item="item" :index="item.index"></slot>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+
+interface Props {
+  items: any[]
+  itemHeight: number
+  containerHeight: number
+}
+
+const props = defineProps<Props>()
+
+const containerRef = ref<HTMLElement>()
+const scrollTop = ref(0)
+
+// 可见区域的容量
+const visibleCount = computed(() => 
+  Math.ceil(props.containerHeight / props.itemHeight)
+)
+
+// 总高度
+const totalHeight = computed(() => 
+  props.items.length * props.itemHeight
+)
+
+// 起始索引
+const startIndex = computed(() => 
+  Math.floor(scrollTop.value / props.itemHeight)
+)
+
+// 结束索引
+const endIndex = computed(() => 
+  Math.min(startIndex.value + visibleCount.value, props.items.length - 1)
+)
+
+// 可见项目
+const visibleItems = computed(() => 
+  props.items.slice(startIndex.value, endIndex.value + 1)
+    .map((item, index) => ({
+      ...item,
+      index: startIndex.value + index
+    }))
+)
+
+// 偏移量
+const startOffset = computed(() => 
+  startIndex.value * props.itemHeight
+)
+
+// 滚动处理
+const handleScroll = (e: Event) => {
+  scrollTop.value = (e.target as HTMLElement).scrollTop
+}
+
+onMounted(() => {
+  if (containerRef.value) {
+    containerRef.value.style.height = props.containerHeight + 'px'
+  }
+})
+</script>
+```
+
+### 组件懒加载
+```typescript
+// utils/lazyLoad.ts
+import { defineAsyncComponent } from 'vue'
+
+export function createLazyComponent(loader: () => Promise<any>) {
+  return defineAsyncComponent({
+    loader,
+    loadingComponent: () => import('@/components/ui/Loading.vue'),
+    errorComponent: () => import('@/components/ui/Error.vue'),
+    delay: 200,
+    timeout: 3000
+  })
+}
+
+// 使用示例
+const UserList = createLazyComponent(() => import('@/views/user/UserList.vue'))
+const ProductGrid = createLazyComponent(() => import('@/views/product/ProductGrid.vue'))
+```
+
+## TypeScript集成
+### 类型定义
+```typescript
+// types/user.ts
+export interface User {
+  id: string
+  name: string
+  email: string
+  avatar?: string
+  status: 'active' | 'inactive' | 'suspended'
+  role: UserRole
+  department: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface UserRole {
+  id: string
+  name: string
+  permissions: Permission[]
+}
+
+export interface Permission {
+  id: string
+  name: string
+  description: string
+}
+
+export interface UserFilters {
+  keyword: string
+  status: 'all' | 'active' | 'inactive' | 'suspended'
+  department: string
+  role?: string
+}
+
+export interface UserCreateData {
+  name: string
+  email: string
+  password: string
+  department: string
+  roleId: string
+}
+
+export interface UserUpdateData {
+  name?: string
+  email?: string
+  department?: string
+  roleId?: string
+  status?: User['status']
+}
+
+// API响应类型
+export interface ApiResponse<T> {
+  success: boolean
+  data: T
+  message: string
+  meta?: {
+    total?: number
+    page?: number
+    limit?: number
+  }
+}
+
+export interface PaginatedResponse<T> {
+  items: T[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+```
+
+## 工具和构建配置
+### Vite配置优化
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import { resolve } from 'path'
+
+export default defineConfig({
+  plugins: [vue()],
+  resolve: {
+    alias: {
+      '@': resolve(__dirname, 'src'),
+      '@/components': resolve(__dirname, 'src/components'),
+      '@/views': resolve(__dirname, 'src/views'),
+      '@/utils': resolve(__dirname, 'src/utils'),
+      '@/stores': resolve(__dirname, 'src/stores'),
+      '@/types': resolve(__dirname, 'src/types')
+    }
+  },
+  css: {
+    preprocessorOptions: {
+      scss: {
+        additionalData: `@import "@/styles/variables.scss";`
+      }
+    }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['vue', 'vue-router', 'pinia'],
+          ui: ['element-plus']
+        }
+      }
+    }
+  },
+  server: {
+    port: 3000,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')
+      }
+    }
+  }
+})
+```

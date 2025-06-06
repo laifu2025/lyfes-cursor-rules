@@ -1,0 +1,608 @@
+# 来福哥的Python开发规则
+
+## 项目结构规范
+```
+project/
+├── src/                 # 源代码目录
+│   ├── __init__.py
+│   ├── main.py         # 程序入口
+│   ├── models/         # 数据模型
+│   ├── services/       # 业务逻辑
+│   ├── utils/          # 工具函数
+│   └── config/         # 配置文件
+├── tests/              # 测试代码
+├── docs/               # 文档
+├── requirements.txt    # 依赖清单
+├── pyproject.toml     # 项目配置
+└── README.md          # 项目说明
+```
+
+## 代码风格规范
+### 命名约定
+```python
+# ✅ 推荐的命名方式
+
+# 变量和函数：snake_case
+user_name = "张三"
+order_count = 0
+
+def get_user_info(user_id: int) -> dict:
+    """获取用户信息"""
+    pass
+
+def calculate_total_price(items: list) -> float:
+    """计算总价格"""
+    pass
+
+# 类名：PascalCase
+class UserService:
+    """用户服务类"""
+    pass
+
+class OrderManager:
+    """订单管理类"""
+    pass
+
+# 常量：UPPER_CASE
+MAX_RETRY_COUNT = 3
+DEFAULT_TIMEOUT = 30
+API_BASE_URL = "https://api.example.com"
+
+# 私有属性/方法：前缀下划线
+class User:
+    def __init__(self, name: str):
+        self.name = name
+        self._id = None  # 私有属性
+        
+    def _generate_id(self) -> str:
+        """私有方法"""
+        pass
+```
+
+### Type Hints使用规范
+```python
+from typing import List, Dict, Optional, Union, Any
+from dataclasses import dataclass
+from enum import Enum
+
+# ✅ 基础类型注解
+def process_user_data(
+    user_id: int,
+    name: str,
+    email: Optional[str] = None,
+    is_active: bool = True
+) -> Dict[str, Any]:
+    """处理用户数据"""
+    return {
+        "id": user_id,
+        "name": name,
+        "email": email,
+        "is_active": is_active
+    }
+
+# ✅ 复杂类型注解
+def filter_users(
+    users: List[Dict[str, Any]],
+    criteria: Dict[str, Union[str, int, bool]]
+) -> List[Dict[str, Any]]:
+    """根据条件筛选用户"""
+    pass
+
+# ✅ 使用dataclass
+@dataclass
+class User:
+    id: int
+    name: str
+    email: Optional[str] = None
+    is_active: bool = True
+
+# ✅ 使用枚举
+class UserStatus(Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    SUSPENDED = "suspended"
+```
+
+## 异常处理规范
+### 自定义异常类
+```python
+# exceptions.py
+class AppException(Exception):
+    """应用程序基础异常类"""
+    def __init__(self, message: str, code: str = "APP_ERROR"):
+        self.message = message
+        self.code = code
+        super().__init__(self.message)
+
+class ValidationError(AppException):
+    """数据验证异常"""
+    def __init__(self, message: str, field: str = None):
+        self.field = field
+        super().__init__(message, "VALIDATION_ERROR")
+
+class NotFoundError(AppException):
+    """资源不存在异常"""
+    def __init__(self, resource: str = "资源"):
+        super().__init__(f"{resource}不存在", "NOT_FOUND")
+
+class DatabaseError(AppException):
+    """数据库操作异常"""
+    def __init__(self, message: str):
+        super().__init__(message, "DATABASE_ERROR")
+```
+
+### 异常处理最佳实践
+```python
+import logging
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+class UserService:
+    def create_user(self, user_data: Dict[str, Any]) -> User:
+        """创建用户"""
+        try:
+            # 数据验证
+            self._validate_user_data(user_data)
+            
+            # 检查邮箱是否已存在
+            if self._is_email_exists(user_data["email"]):
+                raise ValidationError("邮箱已被注册", "email")
+            
+            # 创建用户
+            user = self._create_user_in_db(user_data)
+            logger.info(f"用户创建成功: {user.id}")
+            return user
+            
+        except ValidationError:
+            logger.warning(f"用户数据验证失败: {user_data.get('email')}")
+            raise
+        except DatabaseError as e:
+            logger.error(f"数据库操作失败: {e.message}")
+            raise
+        except Exception as e:
+            logger.error(f"创建用户时发生未知错误: {str(e)}")
+            raise AppException("用户创建失败")
+
+    def _validate_user_data(self, data: Dict[str, Any]) -> None:
+        """验证用户数据"""
+        required_fields = ["name", "email"]
+        for field in required_fields:
+            if not data.get(field):
+                raise ValidationError(f"{field}不能为空", field)
+        
+        if not self._is_valid_email(data["email"]):
+            raise ValidationError("邮箱格式不正确", "email")
+```
+
+## 数据库操作规范
+### SQLAlchemy ORM示例
+```python
+# models/user.py
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+from datetime import datetime
+
+Base = declarative_base()
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False, comment="用户姓名")
+    email = Column(String(255), unique=True, nullable=False, comment="邮箱地址")
+    password_hash = Column(String(255), nullable=False, comment="密码哈希")
+    is_active = Column(Boolean, default=True, comment="是否激活")
+    created_at = Column(DateTime, default=datetime.utcnow, comment="创建时间")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, comment="更新时间")
+
+    def to_dict(self) -> Dict[str, Any]:
+        """转换为字典"""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "email": self.email,
+            "is_active": self.is_active,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
+        }
+
+# repositories/user_repository.py
+from sqlalchemy.orm import Session
+from typing import List, Optional
+from models.user import User
+
+class UserRepository:
+    def __init__(self, db_session: Session):
+        self.db = db_session
+
+    def create(self, user_data: Dict[str, Any]) -> User:
+        """创建用户"""
+        user = User(**user_data)
+        self.db.add(user)
+        self.db.commit()
+        self.db.refresh(user)
+        return user
+
+    def get_by_id(self, user_id: int) -> Optional[User]:
+        """根据ID获取用户"""
+        return self.db.query(User).filter(User.id == user_id).first()
+
+    def get_by_email(self, email: str) -> Optional[User]:
+        """根据邮箱获取用户"""
+        return self.db.query(User).filter(User.email == email).first()
+
+    def get_all(self, skip: int = 0, limit: int = 100) -> List[User]:
+        """获取用户列表"""
+        return self.db.query(User).offset(skip).limit(limit).all()
+
+    def update(self, user_id: int, user_data: Dict[str, Any]) -> Optional[User]:
+        """更新用户"""
+        user = self.get_by_id(user_id)
+        if user:
+            for key, value in user_data.items():
+                setattr(user, key, value)
+            self.db.commit()
+            self.db.refresh(user)
+        return user
+
+    def delete(self, user_id: int) -> bool:
+        """删除用户"""
+        user = self.get_by_id(user_id)
+        if user:
+            self.db.delete(user)
+            self.db.commit()
+            return True
+        return False
+```
+
+## Web开发规范（FastAPI示例）
+### API路由结构
+```python
+# main.py
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, EmailStr
+from typing import List, Optional
+
+app = FastAPI(
+    title="用户管理API",
+    description="基于FastAPI的用户管理系统",
+    version="1.0.0"
+)
+
+# CORS配置
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 生产环境应该限制域名
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Pydantic模型
+class UserCreate(BaseModel):
+    name: str
+    email: EmailStr
+    password: str
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    is_active: Optional[bool] = None
+
+class UserResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    is_active: bool
+    created_at: str
+    
+    class Config:
+        from_attributes = True
+
+# API路由
+@app.post("/users/", response_model=UserResponse, status_code=201)
+async def create_user(user_data: UserCreate, db: Session = Depends(get_db)):
+    """创建新用户"""
+    try:
+        user_service = UserService(db)
+        user = user_service.create_user(user_data.dict())
+        return UserResponse.from_orm(user)
+    except ValidationError as e:
+        raise HTTPException(status_code=400, detail=e.message)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="创建用户失败")
+
+@app.get("/users/{user_id}", response_model=UserResponse)
+async def get_user(user_id: int, db: Session = Depends(get_db)):
+    """获取用户信息"""
+    user_service = UserService(db)
+    user = user_service.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    return UserResponse.from_orm(user)
+
+@app.get("/users/", response_model=List[UserResponse])
+async def list_users(
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(get_db)
+):
+    """获取用户列表"""
+    user_service = UserService(db)
+    users = user_service.get_users(skip=skip, limit=limit)
+    return [UserResponse.from_orm(user) for user in users]
+```
+
+### 依赖注入和中间件
+```python
+# dependencies.py
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer
+from sqlalchemy.orm import Session
+from database import SessionLocal
+import jwt
+
+security = HTTPBearer()
+
+def get_db():
+    """数据库会话依赖"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+def get_current_user(token: str = Depends(security), db: Session = Depends(get_db)):
+    """获取当前用户"""
+    try:
+        payload = jwt.decode(token.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: int = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="无效的访问令牌"
+            )
+    except jwt.PyJWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="访问令牌验证失败"
+        )
+    
+    user_service = UserService(db)
+    user = user_service.get_user_by_id(user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="用户不存在"
+        )
+    return user
+```
+
+## 异步编程规范
+```python
+import asyncio
+import aiohttp
+from typing import List, Dict, Any
+
+class AsyncUserService:
+    def __init__(self):
+        self.session: Optional[aiohttp.ClientSession] = None
+
+    async def __aenter__(self):
+        self.session = aiohttp.ClientSession()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.session:
+            await self.session.close()
+
+    async def fetch_user_data(self, user_id: int) -> Dict[str, Any]:
+        """异步获取用户数据"""
+        if not self.session:
+            raise RuntimeError("Session not initialized")
+            
+        async with self.session.get(f"/api/users/{user_id}") as response:
+            if response.status == 200:
+                return await response.json()
+            raise Exception(f"获取用户数据失败: {response.status}")
+
+    async def batch_fetch_users(self, user_ids: List[int]) -> List[Dict[str, Any]]:
+        """批量获取用户数据"""
+        tasks = [self.fetch_user_data(user_id) for user_id in user_ids]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        users = []
+        for result in results:
+            if isinstance(result, Exception):
+                logger.error(f"获取用户数据失败: {result}")
+            else:
+                users.append(result)
+        
+        return users
+
+# 使用示例
+async def main():
+    user_ids = [1, 2, 3, 4, 5]
+    
+    async with AsyncUserService() as service:
+        users = await service.batch_fetch_users(user_ids)
+        print(f"成功获取 {len(users)} 个用户数据")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+## 测试规范
+### pytest测试示例
+```python
+# tests/test_user_service.py
+import pytest
+from unittest.mock import Mock, patch
+from services.user_service import UserService
+from exceptions import ValidationError, NotFoundError
+
+class TestUserService:
+    @pytest.fixture
+    def mock_db(self):
+        """模拟数据库会话"""
+        return Mock()
+
+    @pytest.fixture
+    def user_service(self, mock_db):
+        """用户服务实例"""
+        return UserService(mock_db)
+
+    def test_create_user_success(self, user_service):
+        """测试成功创建用户"""
+        user_data = {
+            "name": "张三",
+            "email": "zhangsan@example.com",
+            "password": "password123"
+        }
+        
+        # 模拟数据库操作
+        with patch.object(user_service, '_is_email_exists', return_value=False), \
+             patch.object(user_service, '_create_user_in_db') as mock_create:
+            
+            mock_user = Mock()
+            mock_user.id = 1
+            mock_create.return_value = mock_user
+            
+            result = user_service.create_user(user_data)
+            
+            assert result.id == 1
+            mock_create.assert_called_once()
+
+    def test_create_user_duplicate_email(self, user_service):
+        """测试重复邮箱创建用户"""
+        user_data = {
+            "name": "张三",
+            "email": "zhangsan@example.com",
+            "password": "password123"
+        }
+        
+        with patch.object(user_service, '_is_email_exists', return_value=True):
+            with pytest.raises(ValidationError) as exc_info:
+                user_service.create_user(user_data)
+            
+            assert "邮箱已被注册" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_async_fetch_user(self):
+        """测试异步获取用户"""
+        with patch('aiohttp.ClientSession.get') as mock_get:
+            mock_response = Mock()
+            mock_response.status = 200
+            mock_response.json.return_value = {"id": 1, "name": "张三"}
+            mock_get.return_value.__aenter__.return_value = mock_response
+            
+            async with AsyncUserService() as service:
+                result = await service.fetch_user_data(1)
+                
+                assert result["id"] == 1
+                assert result["name"] == "张三"
+```
+
+## 日志和监控
+```python
+# utils/logger.py
+import logging
+import sys
+from pathlib import Path
+
+def setup_logger(name: str, level: str = "INFO") -> logging.Logger:
+    """设置日志记录器"""
+    logger = logging.getLogger(name)
+    logger.setLevel(getattr(logging, level.upper()))
+    
+    # 控制���输出
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    console_handler.setFormatter(console_formatter)
+    logger.addHandler(console_handler)
+    
+    # 文件输出
+    log_dir = Path("logs")
+    log_dir.mkdir(exist_ok=True)
+    
+    file_handler = logging.FileHandler(log_dir / f"{name}.log", encoding='utf-8')
+    file_formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
+    )
+    file_handler.setFormatter(file_formatter)
+    logger.addHandler(file_handler)
+    
+    return logger
+
+# 使用示例
+logger = setup_logger(__name__)
+
+def process_data(data: List[Dict]) -> List[Dict]:
+    """处理数据的示例函数"""
+    logger.info(f"开始处理数据，数据量: {len(data)}")
+    
+    try:
+        processed_data = []
+        for item in data:
+            # 处理逻辑
+            processed_item = transform_item(item)
+            processed_data.append(processed_item)
+            
+        logger.info(f"数据处理完成，处理了 {len(processed_data)} 条记录")
+        return processed_data
+        
+    except Exception as e:
+        logger.error(f"数据处理失败: {str(e)}", exc_info=True)
+        raise
+```
+
+## 配置管理
+```python
+# config/settings.py
+from pydantic import BaseSettings, PostgresDsn, validator
+from typing import Optional
+
+class Settings(BaseSettings):
+    """应用程序配置"""
+    
+    # 基础配置
+    app_name: str = "用户管理系统"
+    debug: bool = False
+    
+    # 数据库配置
+    database_url: PostgresDsn
+    database_echo: bool = False
+    
+    # Redis配置
+    redis_url: str = "redis://localhost:6379"
+    cache_ttl: int = 3600
+    
+    # JWT配置
+    jwt_secret: str
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60 * 24 * 7  # 7天
+    
+    # 邮件配置
+    smtp_host: Optional[str] = None
+    smtp_port: Optional[int] = None
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    
+    @validator('database_url', pre=True)
+    def validate_database_url(cls, v):
+        if not v:
+            raise ValueError('数据库URL不能为空')
+        return v
+    
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+
+# 创建全局配置实例
+settings = Settings()
+```
