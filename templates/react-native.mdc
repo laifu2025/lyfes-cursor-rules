@@ -1,0 +1,1377 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 来福哥的React Native开发规则
+
+**适用范围**: 基于React Native的跨平台移动应用开发  
+
+## 1. 框架概述
+
+### 1.1 React Native简介
+React Native是Facebook开发的跨平台移动应用开发框架，具有以下核心特性：
+- 一套代码，支持iOS和Android双平台
+- 基于React的组件化开发模式
+- 原生性能，接近原生应用体验
+- 热重载，快速开发调试
+- 丰富的第三方库生态
+
+### 1.2 技术栈
+- **开发语言**: JavaScript / TypeScript
+- **UI框架**: React Native Core Components
+- **状态管理**: Redux / Zustand / Context API
+- **导航**: React Navigation
+- **网络请求**: Axios / Fetch API
+- **本地存储**: AsyncStorage / MMKV
+- **动画**: Reanimated / Animated API
+- **推送通知**: React Native Push Notification
+
+## 2. 项目结构规范
+```
+src/
+├── components/                     # 公共组件
+│   ├── common/                    # 通用组件
+│   │   ├── Button/               # 按钮组件
+│   │   ├── Input/                # 输入框组件
+│   │   └── Loading/              # 加载组件
+│   └── business/                 # 业务组件
+├── screens/                      # 页面组件
+│   ├── Auth/                     # 认证相关页面
+│   │   ├── Login/               # 登录页
+│   │   └── Register/            # 注册页
+│   ├── Home/                     # 首页
+│   └── Profile/                  # 个人中心
+├── navigation/                   # 导航配置
+│   ├── AppNavigator.tsx         # 主导航器
+│   ├── AuthNavigator.tsx        # 认证导航器
+│   └── TabNavigator.tsx         # 底部标签导航
+├── services/                     # 服务层
+│   ├── api/                     # API接口
+│   ├── storage/                 # 本地存储
+│   └── notification/            # 推送通知
+├── store/                        # 状态管理
+│   ├── slices/                  # Redux切片
+│   ├── actions/                 # Action定义
+│   └── reducers/                # Reducer定义
+├── utils/                        # 工具函数
+│   ├── constants/               # 常量定义
+│   ├── helpers/                 # 辅助函数
+│   └── validators/              # 验证函数
+├── types/                        # TypeScript类型定义
+├── hooks/                        # 自定义Hooks
+└── assets/                       # 静态资源
+    ├── images/                  # 图片资源
+    ├── fonts/                   # 字体文件
+    └── icons/                   # 图标资源
+```
+
+## 3. 开发规范
+
+### 3.1 TypeScript使用规范
+### 类型定义
+```typescript
+// ✅ 基础类型定义
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// ✅ API响应类型
+interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+  errorCode?: string;
+}
+
+// ✅ 导航参数类型
+type RootStackParamList = {
+  Home: undefined;
+  Profile: { userId: string };
+  Settings: { section?: string };
+};
+
+type HomeScreenProps = NativeStackScreenProps<RootStackParamList, 'Home'>;
+type ProfileScreenProps = NativeStackScreenProps<RootStackParamList, 'Profile'>;
+
+// ✅ Hook返回类型
+interface UseUserDataReturn {
+  user: User | null;
+  loading: boolean;
+  error: string | null;
+  refreshUser: () => Promise<void>;
+}
+
+// ✅ 组件Props类型
+interface ButtonProps {
+  title: string;
+  onPress: () => void;
+  variant?: 'primary' | 'secondary' | 'danger';
+  disabled?: boolean;
+  loading?: boolean;
+  style?: StyleProp<ViewStyle>;
+}
+```
+
+### 3.2 组件开发规范
+### 函数组件结构
+```typescript
+// ✅ 标准组件结构
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
+
+interface CustomButtonProps {
+  title: string;
+  onPress: () => void;
+  variant?: 'primary' | 'secondary';
+  disabled?: boolean;
+  loading?: boolean;
+}
+
+const CustomButton: React.FC<CustomButtonProps> = ({
+  title,
+  onPress,
+  variant = 'primary',
+  disabled = false,
+  loading = false,
+}) => {
+  // 计算样式
+  const buttonStyle = [
+    styles.button,
+    styles[variant],
+    disabled && styles.disabled,
+  ];
+
+  const textStyle = [
+    styles.text,
+    styles[`${variant}Text`],
+  ];
+
+  return (
+    <TouchableOpacity
+      style={buttonStyle}
+      onPress={onPress}
+      disabled={disabled || loading}
+      activeOpacity={0.8}
+    >
+      {loading ? (
+        <ActivityIndicator color="#FFFFFF" size="small" />
+      ) : (
+        <Text style={textStyle}>{title}</Text>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+const styles = StyleSheet.create({
+  button: {
+    height: 48,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  primary: {
+    backgroundColor: '#007AFF',
+  },
+  secondary: {
+    backgroundColor: '#F2F2F7',
+    borderWidth: 1,
+    borderColor: '#D1D1D6',
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+  text: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  primaryText: {
+    color: '#FFFFFF',
+  },
+  secondaryText: {
+    color: '#007AFF',
+  },
+});
+
+export default CustomButton;
+```
+
+### Screen组件结构
+```typescript
+// ✅ 页面组件结构
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  RefreshControl,
+  StyleSheet,
+  Alert,
+} from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+
+import { CustomButton, Loading, ErrorView } from '../components';
+import { useUserData } from '../hooks';
+import { colors, spacing, typography } from '../theme';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
+
+const ProfileScreen: React.FC<Props> = ({ navigation, route }) => {
+  const { userId } = route.params;
+  const { user, loading, error, refreshUser } = useUserData(userId);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // 页面初始化
+  useEffect(() => {
+    // 设置导航栏
+    navigation.setOptions({
+      title: '用户资料',
+      headerRight: () => (
+        <TouchableOpacity onPress={handleEdit}>
+          <Text style={styles.editButton}>编辑</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
+
+  // 事件处理
+  const handleEdit = () => {
+    if (user) {
+      navigation.navigate('EditProfile', { user });
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await refreshUser();
+    setRefreshing(false);
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      '确认退出',
+      '您确定要退出登录吗？',
+      [
+        { text: '取消', style: 'cancel' },
+        { text: '确定', style: 'destructive', onPress: logout },
+      ]
+    );
+  };
+
+  // 渲染方法
+  const renderUserInfo = () => {
+    if (!user) return null;
+
+    return (
+      <View style={styles.userInfo}>
+        <Image source={{ uri: user.avatar }} style={styles.avatar} />
+        <Text style={styles.name}>{user.name}</Text>
+        <Text style={styles.email}>{user.email}</Text>
+      </View>
+    );
+  };
+
+  const renderActions = () => (
+    <View style={styles.actions}>
+      <CustomButton
+        title="编辑资料"
+        onPress={handleEdit}
+        variant="primary"
+      />
+      <CustomButton
+        title="退出登录"
+        onPress={handleLogout}
+        variant="secondary"
+        style={styles.logoutButton}
+      />
+    </View>
+  );
+
+  // 主渲染
+  if (loading && !user) {
+    return <Loading />;
+  }
+
+  if (error && !user) {
+    return (
+      <ErrorView
+        message={error}
+        onRetry={refreshUser}
+      />
+    );
+  }
+
+  return (
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+        />
+      }
+    >
+      {renderUserInfo()}
+      {renderActions()}
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  userInfo: {
+    alignItems: 'center',
+    padding: spacing.large,
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    marginBottom: spacing.medium,
+  },
+  name: {
+    ...typography.title1,
+    marginBottom: spacing.small,
+  },
+  email: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  actions: {
+    padding: spacing.large,
+  },
+  logoutButton: {
+    marginTop: spacing.medium,
+  },
+  editButton: {
+    color: colors.primary,
+    fontSize: 16,
+  },
+});
+
+export default ProfileScreen;
+```
+
+## 4. 状态管理规范
+### Redux Toolkit使用
+```typescript
+// ✅ User Slice定义
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { User, ApiResponse } from '../types';
+import { userApi } from '../services/api';
+
+interface UserState {
+  currentUser: User | null;
+  users: User[];
+  loading: boolean;
+  error: string | null;
+}
+
+const initialState: UserState = {
+  currentUser: null,
+  users: [],
+  loading: false,
+  error: null,
+};
+
+// 异步Actions
+export const fetchUser = createAsyncThunk(
+  'user/fetchUser',
+  async (userId: string, { rejectWithValue }) => {
+    try {
+      const response = await userApi.getUser(userId);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || '获取用户信息失败');
+    }
+  }
+);
+
+export const updateUser = createAsyncThunk(
+  'user/updateUser',
+  async (userData: Partial<User>, { rejectWithValue }) => {
+    try {
+      const response = await userApi.updateUser(userData);
+      return response.data;
+    } catch (error: any) {
+      return rejectWithValue(error.message || '更新用户信息失败');
+    }
+  }
+);
+
+// Slice定义
+const userSlice = createSlice({
+  name: 'user',
+  initialState,
+  reducers: {
+    clearUser: (state) => {
+      state.currentUser = null;
+      state.error = null;
+    },
+    setError: (state, action: PayloadAction<string>) => {
+      state.error = action.payload;
+    },
+    clearError: (state) => {
+      state.error = null;
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      // fetchUser
+      .addCase(fetchUser.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchUser.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentUser = action.payload;
+      })
+      .addCase(fetchUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // updateUser
+      .addCase(updateUser.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(updateUser.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentUser = action.payload;
+      })
+      .addCase(updateUser.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      });
+  },
+});
+
+export const { clearUser, setError, clearError } = userSlice.actions;
+export default userSlice.reducer;
+
+// ✅ Store配置
+import { configureStore } from '@reduxjs/toolkit';
+import { persistStore, persistReducer } from 'redux-persist';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import userReducer from './slices/userSlice';
+import authReducer from './slices/authSlice';
+
+const persistConfig = {
+  key: 'root',
+  storage: AsyncStorage,
+  whitelist: ['auth'], // 只持久化auth状态
+};
+
+const persistedAuthReducer = persistReducer(persistConfig, authReducer);
+
+export const store = configureStore({
+  reducer: {
+    user: userReducer,
+    auth: persistedAuthReducer,
+  },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],
+      },
+    }),
+});
+
+export const persistor = persistStore(store);
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+
+// ✅ Typed Hooks
+import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
+
+export const useAppDispatch = () => useDispatch<AppDispatch>();
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;
+```
+
+### 自定义Hooks
+```typescript
+// ✅ 用户数据Hook
+import { useEffect } from 'react';
+import { useAppDispatch, useAppSelector } from '../store';
+import { fetchUser, clearError } from '../store/slices/userSlice';
+
+export const useUserData = (userId: string): UseUserDataReturn => {
+  const dispatch = useAppDispatch();
+  const { currentUser, loading, error } = useAppSelector(state => state.user);
+
+  useEffect(() => {
+    if (userId) {
+      dispatch(fetchUser(userId));
+    }
+    
+    return () => {
+      dispatch(clearError());
+    };
+  }, [userId, dispatch]);
+
+  const refreshUser = async () => {
+    if (userId) {
+      await dispatch(fetchUser(userId));
+    }
+  };
+
+  return {
+    user: currentUser,
+    loading,
+    error,
+    refreshUser,
+  };
+};
+
+// ✅ 网络状态Hook
+import { useState, useEffect } from 'react';
+import NetInfo from '@react-native-netinfo/netinfo';
+
+export const useNetworkStatus = () => {
+  const [isConnected, setIsConnected] = useState<boolean | null>(null);
+  const [networkType, setNetworkType] = useState<string>('unknown');
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsConnected(state.isConnected);
+      setNetworkType(state.type);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  return { isConnected, networkType };
+};
+
+// ✅ 防抖Hook
+import { useState, useEffect } from 'react';
+
+export const useDebounce = <T>(value: T, delay: number): T => {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+```
+
+## 5. 导航规范
+### React Navigation使用
+```typescript
+// ✅ 导航类型定义
+export type RootStackParamList = {
+  Auth: undefined;
+  Main: undefined;
+  Profile: { userId: string };
+  Settings: { section?: string };
+};
+
+export type TabParamList = {
+  Home: undefined;
+  Search: undefined;
+  Notifications: undefined;
+  Profile: undefined;
+};
+
+// ✅ 主导航器
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+import AuthNavigator from './AuthNavigator';
+import TabNavigator from './TabNavigator';
+import { useAppSelector } from '../store';
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+const AppNavigator: React.FC = () => {
+  const isAuthenticated = useAppSelector(state => state.auth.isAuthenticated);
+
+  return (
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {isAuthenticated ? (
+          <Stack.Screen name="Main" component={TabNavigator} />
+        ) : (
+          <Stack.Screen name="Auth" component={AuthNavigator} />
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+};
+
+export default AppNavigator;
+
+// ✅ 标签导航器
+import React from 'react';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import Icon from 'react-native-vector-icons/Ionicons';
+
+import HomeScreen from '../screens/Home/HomeScreen';
+import SearchScreen from '../screens/Search/SearchScreen';
+import NotificationsScreen from '../screens/Notifications/NotificationsScreen';
+import ProfileScreen from '../screens/Profile/ProfileScreen';
+
+const Tab = createBottomTabNavigator<TabParamList>();
+
+const TabNavigator: React.FC = () => {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: string;
+
+          switch (route.name) {
+            case 'Home':
+              iconName = focused ? 'home' : 'home-outline';
+              break;
+            case 'Search':
+              iconName = focused ? 'search' : 'search-outline';
+              break;
+            case 'Notifications':
+              iconName = focused ? 'notifications' : 'notifications-outline';
+              break;
+            case 'Profile':
+              iconName = focused ? 'person' : 'person-outline';
+              break;
+            default:
+              iconName = 'ellipse';
+          }
+
+          return <Icon name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: '#007AFF',
+        tabBarInactiveTintColor: 'gray',
+        headerShown: false,
+      })}
+    >
+      <Tab.Screen name="Home" component={HomeScreen} options={{ title: '首页' }} />
+      <Tab.Screen name="Search" component={SearchScreen} options={{ title: '搜索' }} />
+      <Tab.Screen name="Notifications" component={NotificationsScreen} options={{ title: '通知' }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: '我的' }} />
+    </Tab.Navigator>
+  );
+};
+
+export default TabNavigator;
+```
+
+## 6. 网络请求规范
+### API服务封装
+```typescript
+// ✅ HTTP客户端配置
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+class ApiClient {
+  private instance: AxiosInstance;
+
+  constructor() {
+    this.instance = axios.create({
+      baseURL: __DEV__ 
+        ? 'https://dev-api.example.com' 
+        : 'https://api.example.com',
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    this.setupInterceptors();
+  }
+
+  private setupInterceptors() {
+    // 请求拦截器
+    this.instance.interceptors.request.use(
+      async (config) => {
+        const token = await AsyncStorage.getItem('auth_token');
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        
+        if (__DEV__) {
+          console.log('API Request:', config.method?.toUpperCase(), config.url);
+        }
+        
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
+    // 响应拦截器
+    this.instance.interceptors.response.use(
+      (response: AxiosResponse) => {
+        if (__DEV__) {
+          console.log('API Response:', response.config.url, response.status);
+        }
+        return response;
+      },
+      async (error) => {
+        if (error.response?.status === 401) {
+          // Token过期，清除本地存储并跳转到登录页
+          await AsyncStorage.removeItem('auth_token');
+          // 这里可以使用导航服务跳转到登录页
+        }
+        
+        return Promise.reject(this.handleError(error));
+      }
+    );
+  }
+
+  private handleError(error: any): Error {
+    if (error.response) {
+      // 服务器响应错误
+      const message = error.response.data?.message || '服务器错误';
+      return new Error(message);
+    } else if (error.request) {
+      // 网络错误
+      return new Error('网络连接失败，请检查网络设置');
+    } else {
+      // 其他错误
+      return new Error(error.message || '未知错误');
+    }
+  }
+
+  async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.instance.get<T>(url, config);
+    return response.data;
+  }
+
+  async post<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.instance.post<T>(url, data, config);
+    return response.data;
+  }
+
+  async put<T>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.instance.put<T>(url, data, config);
+    return response.data;
+  }
+
+  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const response = await this.instance.delete<T>(url, config);
+    return response.data;
+  }
+}
+
+export const apiClient = new ApiClient();
+
+// ✅ API服务类
+class UserApi {
+  async getUser(userId: string): Promise<ApiResponse<User>> {
+    return apiClient.get(`/users/${userId}`);
+  }
+
+  async updateUser(userData: Partial<User>): Promise<ApiResponse<User>> {
+    return apiClient.put('/users/me', userData);
+  }
+
+  async getUserList(page = 1, limit = 20): Promise<ApiResponse<User[]>> {
+    return apiClient.get('/users', {
+      params: { page, limit },
+    });
+  }
+
+  async uploadAvatar(imageUri: string): Promise<ApiResponse<{ url: string }>> {
+    const formData = new FormData();
+    formData.append('avatar', {
+      uri: imageUri,
+      type: 'image/jpeg',
+      name: 'avatar.jpg',
+    } as any);
+
+    return apiClient.post('/users/avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  }
+}
+
+export const userApi = new UserApi();
+```
+
+## 7. 本地存储规范
+### AsyncStorage封装
+```typescript
+// ✅ 存储服务类
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+class StorageService {
+  private static instance: StorageService;
+
+  public static getInstance(): StorageService {
+    if (!StorageService.instance) {
+      StorageService.instance = new StorageService();
+    }
+    return StorageService.instance;
+  }
+
+  // 存储字符串
+  async setString(key: string, value: string): Promise<void> {
+    try {
+      await AsyncStorage.setItem(key, value);
+    } catch (error) {
+      console.error('存储字符串失败:', error);
+      throw error;
+    }
+  }
+
+  // 获取字符串
+  async getString(key: string): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(key);
+    } catch (error) {
+      console.error('获取字符串失败:', error);
+      return null;
+    }
+  }
+
+  // 存储对象
+  async setObject<T>(key: string, value: T): Promise<void> {
+    try {
+      const jsonValue = JSON.stringify(value);
+      await AsyncStorage.setItem(key, jsonValue);
+    } catch (error) {
+      console.error('存储对象失败:', error);
+      throw error;
+    }
+  }
+
+  // 获取对象
+  async getObject<T>(key: string): Promise<T | null> {
+    try {
+      const jsonValue = await AsyncStorage.getItem(key);
+      return jsonValue ? JSON.parse(jsonValue) : null;
+    } catch (error) {
+      console.error('获取对象失败:', error);
+      return null;
+    }
+  }
+
+  // 删除项目
+  async removeItem(key: string): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(key);
+    } catch (error) {
+      console.error('删除项目失败:', error);
+      throw error;
+    }
+  }
+
+  // 清除所有存储
+  async clear(): Promise<void> {
+    try {
+      await AsyncStorage.clear();
+    } catch (error) {
+      console.error('清除存储失败:', error);
+      throw error;
+    }
+  }
+
+  // 获取所有键
+  async getAllKeys(): Promise<string[]> {
+    try {
+      return await AsyncStorage.getAllKeys();
+    } catch (error) {
+      console.error('获取所有键失败:', error);
+      return [];
+    }
+  }
+}
+
+// ✅ 存储键常量
+export enum StorageKeys {
+  AUTH_TOKEN = 'auth_token',
+  USER_DATA = 'user_data',
+  SETTINGS = 'settings',
+  THEME = 'theme',
+  LANGUAGE = 'language',
+}
+
+// ✅ 类型安全的存储函数
+export const storage = StorageService.getInstance();
+
+export const setAuthToken = (token: string) => 
+  storage.setString(StorageKeys.AUTH_TOKEN, token);
+
+export const getAuthToken = () => 
+  storage.getString(StorageKeys.AUTH_TOKEN);
+
+export const setUserData = (user: User) => 
+  storage.setObject(StorageKeys.USER_DATA, user);
+
+export const getUserData = () => 
+  storage.getObject<User>(StorageKeys.USER_DATA);
+
+export const clearAuthData = async () => {
+  await Promise.all([
+    storage.removeItem(StorageKeys.AUTH_TOKEN),
+    storage.removeItem(StorageKeys.USER_DATA),
+  ]);
+};
+```
+
+## 8. 样式和主题规范
+### 主题系统
+```typescript
+// ✅ 主题配置
+interface Theme {
+  colors: {
+    primary: string;
+    secondary: string;
+    background: string;
+    surface: string;
+    text: string;
+    textSecondary: string;
+    border: string;
+    error: string;
+    success: string;
+    warning: string;
+  };
+  spacing: {
+    xs: number;
+    small: number;
+    medium: number;
+    large: number;
+    xl: number;
+  };
+  borderRadius: {
+    small: number;
+    medium: number;
+    large: number;
+  };
+  typography: {
+    h1: TextStyle;
+    h2: TextStyle;
+    h3: TextStyle;
+    body: TextStyle;
+    caption: TextStyle;
+  };
+}
+
+export const lightTheme: Theme = {
+  colors: {
+    primary: '#007AFF',
+    secondary: '#5856D6',
+    background: '#FFFFFF',
+    surface: '#F2F2F7',
+    text: '#000000',
+    textSecondary: '#8E8E93',
+    border: '#D1D1D6',
+    error: '#FF3B30',
+    success: '#34C759',
+    warning: '#FF9500',
+  },
+  spacing: {
+    xs: 4,
+    small: 8,
+    medium: 16,
+    large: 24,
+    xl: 32,
+  },
+  borderRadius: {
+    small: 4,
+    medium: 8,
+    large: 16,
+  },
+  typography: {
+    h1: {
+      fontSize: 28,
+      fontWeight: 'bold',
+      lineHeight: 34,
+    },
+    h2: {
+      fontSize: 22,
+      fontWeight: '600',
+      lineHeight: 28,
+    },
+    h3: {
+      fontSize: 18,
+      fontWeight: '600',
+      lineHeight: 24,
+    },
+    body: {
+      fontSize: 16,
+      fontWeight: 'normal',
+      lineHeight: 22,
+    },
+    caption: {
+      fontSize: 14,
+      fontWeight: 'normal',
+      lineHeight: 18,
+    },
+  },
+};
+
+export const darkTheme: Theme = {
+  ...lightTheme,
+  colors: {
+    ...lightTheme.colors,
+    background: '#000000',
+    surface: '#1C1C1E',
+    text: '#FFFFFF',
+    textSecondary: '#8E8E93',
+    border: '#38383A',
+  },
+};
+
+// ✅ 主题Context
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+
+interface ThemeContextType {
+  theme: Theme;
+  isDark: boolean;
+  toggleTheme: () => void;
+}
+
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [isDark, setIsDark] = useState(false);
+
+  const toggleTheme = () => {
+    setIsDark(!isDark);
+  };
+
+  const theme = isDark ? darkTheme : lightTheme;
+
+  return (
+    <ThemeContext.Provider value={{ theme, isDark, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+
+export const useTheme = (): ThemeContextType => {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+};
+
+// ✅ 样式工具函数
+export const createStyles = <T extends Record<string, any>>(
+  styleFactory: (theme: Theme) => T
+) => {
+  return (theme: Theme): T => styleFactory(theme);
+};
+
+// 使用示例
+const useStyles = createStyles((theme: Theme) => 
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      padding: theme.spacing.medium,
+    },
+    title: {
+      ...theme.typography.h1,
+      color: theme.colors.text,
+      marginBottom: theme.spacing.medium,
+    },
+    button: {
+      backgroundColor: theme.colors.primary,
+      borderRadius: theme.borderRadius.medium,
+      padding: theme.spacing.medium,
+    },
+  })
+);
+```
+
+## 9. 动画规范
+### Reanimated使用
+```typescript
+// ✅ 基础动画
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  withRepeat,
+  runOnJS,
+} from 'react-native-reanimated';
+
+const AnimatedCard: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: scale.value }],
+      opacity: opacity.value,
+    };
+  });
+
+  const handlePressIn = () => {
+    scale.value = withTiming(0.95, { duration: 150 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1);
+  };
+
+  const fadeIn = () => {
+    opacity.value = withTiming(1, { duration: 300 });
+  };
+
+  const fadeOut = () => {
+    opacity.value = withTiming(0, { duration: 300 });
+  };
+
+  return (
+    <Animated.View style={[styles.card, animatedStyle]}>
+      <TouchableOpacity
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={1}
+      >
+        {children}
+      </TouchableOpacity>
+    </Animated.View>
+  );
+};
+
+// ✅ 手势动画
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import Animated, {
+  useAnimatedGestureHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  runOnJS,
+  withSpring,
+} from 'react-native-reanimated';
+
+const SwipeableCard: React.FC<SwipeableCardProps> = ({ onSwipeLeft, onSwipeRight, children }) => {
+  const translateX = useSharedValue(0);
+  const opacity = useSharedValue(1);
+
+  const gestureHandler = useAnimatedGestureHandler({
+    onStart: () => {
+      // 开始手势
+    },
+    onActive: (event) => {
+      translateX.value = event.translationX;
+      opacity.value = 1 - Math.abs(event.translationX) / 200;
+    },
+    onEnd: (event) => {
+      const shouldSwipeLeft = event.translationX < -100;
+      const shouldSwipeRight = event.translationX > 100;
+
+      if (shouldSwipeLeft) {
+        translateX.value = withSpring(-300);
+        opacity.value = withSpring(0);
+        runOnJS(onSwipeLeft)();
+      } else if (shouldSwipeRight) {
+        translateX.value = withSpring(300);
+        opacity.value = withSpring(0);
+        runOnJS(onSwipeRight)();
+      } else {
+        translateX.value = withSpring(0);
+        opacity.value = withSpring(1);
+      }
+    },
+  });
+
+  const cardStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: translateX.value }],
+      opacity: opacity.value,
+    };
+  });
+
+  return (
+    <PanGestureHandler onGestureEvent={gestureHandler}>
+      <Animated.View style={[styles.swipeableCard, cardStyle]}>
+        {children}
+      </Animated.View>
+    </PanGestureHandler>
+  );
+};
+```
+
+## 10. 性能优化规范
+### 组件优化
+```typescript
+// ✅ 使用React.memo优化
+import React, { memo } from 'react';
+
+interface ListItemProps {
+  item: User;
+  onPress: (user: User) => void;
+}
+
+const ListItem: React.FC<ListItemProps> = memo(({ item, onPress }) => {
+  const handlePress = useCallback(() => {
+    onPress(item);
+  }, [item, onPress]);
+
+  return (
+    <TouchableOpacity onPress={handlePress}>
+      <View style={styles.listItem}>
+        <Text>{item.name}</Text>
+        <Text>{item.email}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}, (prevProps, nextProps) => {
+  // 自定义比较函数
+  return prevProps.item.id === nextProps.item.id;
+});
+
+// ✅ FlatList优化
+const UserList: React.FC<UserListProps> = ({ users, onUserPress }) => {
+  const renderItem = useCallback(({ item }: { item: User }) => (
+    <ListItem item={item} onPress={onUserPress} />
+  ), [onUserPress]);
+
+  const keyExtractor = useCallback((item: User) => item.id, []);
+
+  const getItemLayout = useCallback((data: any, index: number) => ({
+    length: ITEM_HEIGHT,
+    offset: ITEM_HEIGHT * index,
+    index,
+  }), []);
+
+  return (
+    <FlatList
+      data={users}
+      renderItem={renderItem}
+      keyExtractor={keyExtractor}
+      getItemLayout={getItemLayout}
+      removeClippedSubviews={true}
+      maxToRenderPerBatch={10}
+      updateCellsBatchingPeriod={50}
+      initialNumToRender={20}
+      windowSize={21}
+    />
+  );
+};
+
+// ✅ 图片优化
+import FastImage from 'react-native-fast-image';
+
+const OptimizedImage: React.FC<ImageProps> = ({ uri, style, ...props }) => {
+  return (
+    <FastImage
+      style={style}
+      source={{
+        uri,
+        priority: FastImage.priority.normal,
+        cache: FastImage.cacheControl.immutable,
+      }}
+      resizeMode={FastImage.resizeMode.cover}
+      {...props}
+    />
+  );
+};
+```
+
+## 11. 测试规范
+### 单元测试
+```typescript
+// ✅ 组件测试
+import React from 'react';
+import { render, fireEvent } from '@testing-library/react-native';
+import CustomButton from '../CustomButton';
+
+describe('CustomButton', () => {
+  it('应该正确渲染按钮文本', () => {
+    const { getByText } = render(
+      <CustomButton title="测试按钮" onPress={() => {}} />
+    );
+
+    expect(getByText('测试按钮')).toBeTruthy();
+  });
+
+  it('点击时应该调用onPress回调', () => {
+    const mockOnPress = jest.fn();
+    const { getByText } = render(
+      <CustomButton title="测试按钮" onPress={mockOnPress} />
+    );
+
+    fireEvent.press(getByText('测试按钮'));
+    expect(mockOnPress).toHaveBeenCalledTimes(1);
+  });
+
+  it('禁用状态下不应该响应点击', () => {
+    const mockOnPress = jest.fn();
+    const { getByText } = render(
+      <CustomButton title="测试按钮" onPress={mockOnPress} disabled />
+    );
+
+    fireEvent.press(getByText('测试按钮'));
+    expect(mockOnPress).not.toHaveBeenCalled();
+  });
+});
+
+// ✅ Hook测试
+import { renderHook, act } from '@testing-library/react-hooks';
+import { useDebounce } from '../useDebounce';
+
+describe('useDebounce', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('应该返回防抖后的值', () => {
+    const { result, rerender } = renderHook(
+      ({ value, delay }) => useDebounce(value, delay),
+      { initialProps: { value: 'initial', delay: 500 } }
+    );
+
+    expect(result.current).toBe('initial');
+
+    rerender({ value: 'updated', delay: 500 });
+
+    expect(result.current).toBe('initial');
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    expect(result.current).toBe('updated');
+  });
+});
+```
+
+这个React Native开发规则模板涵盖了：
+- 项目结构和TypeScript规范
+- 组件开发最佳实践
+- 状态管理和导航
+- 网络请求和本地存储
+- 样式主题系统
+- 动画和性能优化
+- 测试规范
+
+它为React Native开发提供了完整的指导，帮助开发者构建高质量的跨平台移动应用。

@@ -1,0 +1,1248 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 来福哥的Chrome扩展开发规则
+
+**适用范围**: Chrome浏览器扩展开发  
+
+## 1. 框架概述
+
+### 1.1 Chrome扩展简介
+Chrome扩展是运行在Chrome浏览器中的小程序，具有以下特性：
+- 基于Web技术(HTML/CSS/JavaScript)
+- 强大的浏览器API访问能力
+- 与网页内容的交互能力
+- 跨平台支持
+- Chrome Web Store分发
+
+### 1.2 技术栈
+- **开发语言**: JavaScript / TypeScript
+- **UI技术**: HTML / CSS / React / Vue
+- **构建工具**: Webpack / Vite / Rollup
+- **测试框架**: Jest / Puppeteer
+- **API**: Chrome Extension APIs
+- **存储**: chrome.storage API
+
+## 2. 项目结构规范
+```
+chrome-extension/
+├── manifest.json                  # 扩展清单文件
+├── src/                          # 源代码目录
+│   ├── background/               # 后台脚本
+│   │   └── background.js
+│   ├── content/                  # 内容脚本
+│   │   ├── content.js
+│   │   └── content.css
+│   ├── popup/                    # 弹窗页面
+│   │   ├── popup.html
+│   │   ├── popup.js
+│   │   └── popup.css
+│   ├── options/                  # 选项页面
+│   │   ├── options.html
+│   │   ├── options.js
+│   │   └── options.css
+│   ├── newtab/                   # 新标签页
+│   │   ├── newtab.html
+│   │   ├── newtab.js
+│   │   └── newtab.css
+│   └── utils/                    # 工具函数
+│       ├── storage.js
+│       ├── api.js
+│       └── helpers.js
+├── public/                       # 静态资源
+│   ├── icons/                    # 图标文件
+│   │   ├── icon16.png
+│   │   ├── icon48.png
+│   │   └── icon128.png
+│   └── images/                   # 其他图片
+├── _locales/                     # 国际化文件
+│   ├── en/
+│   │   └── messages.json
+│   └── zh_CN/
+│       └── messages.json
+├── scripts/                      # 构建脚本
+│   ├── build.js
+│   └── dev.js
+├── dist/                         # 构建输出
+└── package.json                  # 项目配置
+```
+
+## 3. Manifest文件规范
+### Manifest V3配置
+```json
+{
+  "manifest_version": 3,
+  "name": "我的Chrome扩展",
+  "version": "1.0.0",
+  "description": "这是一个示例Chrome扩展",
+  "author": "来福哥",
+  
+  "icons": {
+    "16": "public/icons/icon16.png",
+    "48": "public/icons/icon48.png",
+    "128": "public/icons/icon128.png"
+  },
+  
+  "action": {
+    "default_popup": "src/popup/popup.html",
+    "default_title": "点击打开扩展",
+    "default_icon": {
+      "16": "public/icons/icon16.png",
+      "48": "public/icons/icon48.png"
+    }
+  },
+  
+  "background": {
+    "service_worker": "src/background/background.js"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/content.js"],
+      "css": ["src/content/content.css"],
+      "run_at": "document_end"
+    }
+  ],
+  
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs",
+    "scripting"
+  ],
+  
+  "host_permissions": [
+    "https://*.example.com/*"
+  ],
+  
+  "options_page": "src/options/options.html",
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["public/images/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  
+  "default_locale": "en"
+}
+```
+
+## 4. 后台脚本开发规范
+### Service Worker实现
+```javascript
+// ✅ background/background.js
+class BackgroundService {
+  constructor() {
+    this.init();
+  }
+
+  init() {
+    // 扩展安装时的初始化
+    chrome.runtime.onInstalled.addListener(this.onInstalled.bind(this));
+    
+    // 监听来自内容脚本的消息
+    chrome.runtime.onMessage.addListener(this.onMessage.bind(this));
+    
+    // 监听标签页更新
+    chrome.tabs.onUpdated.addListener(this.onTabUpdated.bind(this));
+    
+    // 监听扩展图标点击
+    chrome.action.onClicked.addListener(this.onActionClicked.bind(this));
+  }
+
+  async onInstalled(details) {
+    console.log('扩展已安装:', details);
+    
+    // 设置默认配置
+    await this.setDefaultSettings();
+    
+    // 创建右键菜单
+    this.createContextMenus();
+    
+    if (details.reason === 'install') {
+      // 首次安装
+      chrome.tabs.create({ url: 'src/options/options.html' });
+    }
+  }
+
+  async setDefaultSettings() {
+    const defaultSettings = {
+      enabled: true,
+      theme: 'light',
+      notifications: true
+    };
+    
+    await chrome.storage.sync.set({ settings: defaultSettings });
+  }
+
+  createContextMenus() {
+    chrome.contextMenus.create({
+      id: 'myExtension',
+      title: '使用我的扩展处理',
+      contexts: ['selection', 'link']
+    });
+    
+    chrome.contextMenus.onClicked.addListener(this.onContextMenuClicked.bind(this));
+  }
+
+  onContextMenuClicked(info, tab) {
+    if (info.menuItemId === 'myExtension') {
+      // 处理右键菜单点击
+      this.handleContextMenuAction(info, tab);
+    }
+  }
+
+  async handleContextMenuAction(info, tab) {
+    try {
+      const result = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        function: this.processSelection,
+        args: [info.selectionText || info.linkUrl]
+      });
+      
+      console.log('处理结果:', result);
+    } catch (error) {
+      console.error('执行脚本失败:', error);
+    }
+  }
+
+  processSelection(text) {
+    // 这个函数会在页面上下文中执行
+    console.log('处理选中的文本:', text);
+    return text.length;
+  }
+
+  async onMessage(request, sender, sendResponse) {
+    console.log('收到消息:', request, '来自:', sender);
+    
+    try {
+      switch (request.action) {
+        case 'getData':
+          const data = await this.getData(request.params);
+          sendResponse({ success: true, data });
+          break;
+          
+        case 'saveData':
+          await this.saveData(request.params);
+          sendResponse({ success: true });
+          break;
+          
+        case 'getSettings':
+          const settings = await this.getSettings();
+          sendResponse({ success: true, settings });
+          break;
+          
+        default:
+          sendResponse({ success: false, error: '未知操作' });
+      }
+    } catch (error) {
+      console.error('处理消息失败:', error);
+      sendResponse({ success: false, error: error.message });
+    }
+    
+    return true; // 保持消息通道开启
+  }
+
+  async getData(params) {
+    // 从存储中获取数据
+    const result = await chrome.storage.sync.get(params.key);
+    return result[params.key];
+  }
+
+  async saveData(params) {
+    // 保存数据到存储
+    await chrome.storage.sync.set({ [params.key]: params.value });
+  }
+
+  async getSettings() {
+    const result = await chrome.storage.sync.get('settings');
+    return result.settings || {};
+  }
+
+  onTabUpdated(tabId, changeInfo, tab) {
+    if (changeInfo.status === 'complete' && tab.url) {
+      // 页面加载完成后的处理
+      this.handlePageLoaded(tab);
+    }
+  }
+
+  async handlePageLoaded(tab) {
+    // 检查是否需要在此页面执行某些操作
+    const settings = await this.getSettings();
+    
+    if (settings.enabled && this.shouldProcessTab(tab)) {
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          files: ['src/content/content.js']
+        });
+      } catch (error) {
+        console.error('注入内容脚本失败:', error);
+      }
+    }
+  }
+
+  shouldProcessTab(tab) {
+    // 判断是否应该处理这个标签页
+    const allowedProtocols = ['http:', 'https:'];
+    const url = new URL(tab.url);
+    return allowedProtocols.includes(url.protocol);
+  }
+
+  onActionClicked(tab) {
+    // 扩展图标被点击时的处理
+    console.log('扩展图标被点击，当前标签:', tab);
+  }
+}
+
+// 初始化后台服务
+new BackgroundService();
+```
+
+## 5. 内容脚本开发规范
+### Content Script实现
+```javascript
+// ✅ content/content.js
+class ContentScript {
+  constructor() {
+    this.isInitialized = false;
+    this.init();
+  }
+
+  init() {
+    if (this.isInitialized) return;
+    
+    // 避免重复初始化
+    this.isInitialized = true;
+    
+    // 等待DOM加载完成
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', this.onDOMReady.bind(this));
+    } else {
+      this.onDOMReady();
+    }
+  }
+
+  onDOMReady() {
+    console.log('内容脚本已加载:', location.href);
+    
+    // 创建UI元素
+    this.createUI();
+    
+    // 绑定事件监听器
+    this.bindEventListeners();
+    
+    // 与后台脚本建立通信
+    this.setupCommunication();
+    
+    // 开始监听页面变化
+    this.observePageChanges();
+  }
+
+  createUI() {
+    // 创建扩展的UI元素
+    const container = document.createElement('div');
+    container.id = 'my-extension-container';
+    container.className = 'my-extension-ui';
+    
+    container.innerHTML = `
+      <div class="my-extension-panel">
+        <button id="my-extension-toggle">切换功能</button>
+        <div id="my-extension-content" style="display: none;">
+          <p>扩展内容区域</p>
+          <button id="my-extension-action">执行操作</button>
+        </div>
+      </div>
+    `;
+    
+    // 添加到页面
+    document.body.appendChild(container);
+    
+    // 添加样式
+    this.addStyles();
+  }
+
+  addStyles() {
+    const style = document.createElement('style');
+    style.textContent = `
+      .my-extension-ui {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 10000;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        padding: 10px;
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+      }
+      
+      .my-extension-panel button {
+        background: #4285f4;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 4px;
+      }
+      
+      .my-extension-panel button:hover {
+        background: #3367d6;
+      }
+    `;
+    
+    document.head.appendChild(style);
+  }
+
+  bindEventListeners() {
+    // 切换按钮事件
+    const toggleBtn = document.getElementById('my-extension-toggle');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', this.togglePanel.bind(this));
+    }
+    
+    // 操作按钮事件
+    const actionBtn = document.getElementById('my-extension-action');
+    if (actionBtn) {
+      actionBtn.addEventListener('click', this.performAction.bind(this));
+    }
+    
+    // 监听页面的其他事件
+    document.addEventListener('keydown', this.onKeyDown.bind(this));
+    document.addEventListener('click', this.onClick.bind(this));
+  }
+
+  togglePanel() {
+    const content = document.getElementById('my-extension-content');
+    if (content) {
+      const isVisible = content.style.display !== 'none';
+      content.style.display = isVisible ? 'none' : 'block';
+    }
+  }
+
+  async performAction() {
+    try {
+      // 获取页面信息
+      const pageInfo = this.getPageInfo();
+      
+      // 发送到后台脚本处理
+      const response = await this.sendMessage({
+        action: 'processPageInfo',
+        data: pageInfo
+      });
+      
+      if (response.success) {
+        this.showNotification('操作完成！', 'success');
+      } else {
+        this.showNotification('操作失败：' + response.error, 'error');
+      }
+    } catch (error) {
+      console.error('执行操作失败:', error);
+      this.showNotification('操作失败：' + error.message, 'error');
+    }
+  }
+
+  getPageInfo() {
+    return {
+      url: location.href,
+      title: document.title,
+      selectedText: window.getSelection().toString(),
+      pageText: document.body.innerText.substring(0, 1000), // 前1000个字符
+      timestamp: Date.now()
+    };
+  }
+
+  onKeyDown(event) {
+    // 监听快捷键
+    if (event.ctrlKey && event.shiftKey && event.key === 'E') {
+      event.preventDefault();
+      this.togglePanel();
+    }
+  }
+
+  onClick(event) {
+    // 监听页面点击事件
+    if (event.target.tagName === 'A') {
+      // 处理链接点击
+      this.handleLinkClick(event);
+    }
+  }
+
+  handleLinkClick(event) {
+    const link = event.target;
+    console.log('链接被点击:', link.href);
+    
+    // 可以在这里添加链接处理逻辑
+    // 例如：收集用户行为数据、修改链接等
+  }
+
+  setupCommunication() {
+    // 监听来自后台脚本的消息
+    chrome.runtime.onMessage.addListener(this.onMessage.bind(this));
+    
+    // 向后台脚本报告内容脚本已加载
+    this.sendMessage({ action: 'contentScriptLoaded', url: location.href });
+  }
+
+  onMessage(request, sender, sendResponse) {
+    console.log('内容脚本收到消息:', request);
+    
+    switch (request.action) {
+      case 'highlightText':
+        this.highlightText(request.text);
+        sendResponse({ success: true });
+        break;
+        
+      case 'getPageData':
+        const data = this.getPageInfo();
+        sendResponse({ success: true, data });
+        break;
+        
+      case 'scrollToElement':
+        this.scrollToElement(request.selector);
+        sendResponse({ success: true });
+        break;
+        
+      default:
+        sendResponse({ success: false, error: '未知操作' });
+    }
+    
+    return true;
+  }
+
+  async sendMessage(message) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(message, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('发送消息失败:', chrome.runtime.lastError);
+          resolve({ success: false, error: chrome.runtime.lastError.message });
+        } else {
+          resolve(response);
+        }
+      });
+    });
+  }
+
+  highlightText(text) {
+    // 高亮显示指定文本
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      null,
+      false
+    );
+    
+    const textNodes = [];
+    let node;
+    
+    while (node = walker.nextNode()) {
+      if (node.textContent.includes(text)) {
+        textNodes.push(node);
+      }
+    }
+    
+    textNodes.forEach(textNode => {
+      const parent = textNode.parentNode;
+      const content = textNode.textContent;
+      const highlightedContent = content.replace(
+        new RegExp(text, 'gi'),
+        `<mark style="background: yellow;">$&</mark>`
+      );
+      
+      const span = document.createElement('span');
+      span.innerHTML = highlightedContent;
+      parent.replaceChild(span, textNode);
+    });
+  }
+
+  scrollToElement(selector) {
+    const element = document.querySelector(selector);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }
+
+  observePageChanges() {
+    // 监听页面DOM变化
+    const observer = new MutationObserver(this.onPageMutation.bind(this));
+    
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true
+    });
+    
+    this.mutationObserver = observer;
+  }
+
+  onPageMutation(mutations) {
+    // 处理页面变化
+    mutations.forEach(mutation => {
+      if (mutation.type === 'childList') {
+        mutation.addedNodes.forEach(node => {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            this.handleNewElement(node);
+          }
+        });
+      }
+    });
+  }
+
+  handleNewElement(element) {
+    // 处理新添加的元素
+    console.log('新元素添加到页面:', element);
+    
+    // 可以在这里添加对新元素的处理逻辑
+    // 例如：为新按钮添加事件监听器、修改新内容等
+  }
+
+  showNotification(message, type = 'info') {
+    // 显示通知
+    const notification = document.createElement('div');
+    notification.className = `my-extension-notification ${type}`;
+    notification.textContent = message;
+    notification.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 10001;
+      padding: 10px 15px;
+      border-radius: 4px;
+      color: white;
+      font-weight: bold;
+      background: ${type === 'success' ? '#4caf50' : type === 'error' ? '#f44336' : '#2196f3'};
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // 3秒后自动移除
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 3000);
+  }
+
+  destroy() {
+    // 清理资源
+    if (this.mutationObserver) {
+      this.mutationObserver.disconnect();
+    }
+    
+    const container = document.getElementById('my-extension-container');
+    if (container) {
+      container.remove();
+    }
+  }
+}
+
+// 防止重复加载
+if (!window.myExtensionContentScript) {
+  window.myExtensionContentScript = new ContentScript();
+}
+```
+
+## 6. 弹窗页面开发规范
+### Popup页面实现
+```html
+<!-- ✅ popup/popup.html -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>我的扩展</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="popup-header">
+      <h1>我的Chrome扩展</h1>
+      <button id="settingsBtn" class="icon-btn" title="设置">
+        <svg width="16" height="16" viewBox="0 0 24 24">
+          <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/>
+        </svg>
+      </button>
+    </header>
+
+    <main class="popup-content">
+      <div class="status-section">
+        <div class="status-indicator">
+          <span id="statusDot" class="status-dot"></span>
+          <span id="statusText">检查状态中...</span>
+        </div>
+        <button id="toggleBtn" class="toggle-btn">启用</button>
+      </div>
+
+      <div class="stats-section">
+        <div class="stat-item">
+          <div class="stat-value" id="processedCount">0</div>
+          <div class="stat-label">已处理页面</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="savedItems">0</div>
+          <div class="stat-label">保存项目</div>
+        </div>
+      </div>
+
+      <div class="actions-section">
+        <button id="analyzePageBtn" class="action-btn primary">分析当前页面</button>
+        <button id="exportDataBtn" class="action-btn secondary">导出数据</button>
+        <button id="clearDataBtn" class="action-btn danger">清除数据</button>
+      </div>
+
+      <div class="recent-section">
+        <h3>最近活动</h3>
+        <div id="recentList" class="recent-list">
+          <div class="empty-state">暂无活动记录</div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="popup-footer">
+      <div class="version">v1.0.0</div>
+      <a href="#" id="helpLink">帮助</a>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+```
+
+```javascript
+// ✅ popup/popup.js
+class PopupManager {
+  constructor() {
+    this.currentTab = null;
+    this.settings = {};
+    this.init();
+  }
+
+  async init() {
+    // 获取当前标签页
+    await this.getCurrentTab();
+    
+    // 加载设置
+    await this.loadSettings();
+    
+    // 初始化UI
+    this.initializeUI();
+    
+    // 绑定事件
+    this.bindEvents();
+    
+    // 加载数据
+    await this.loadData();
+  }
+
+  async getCurrentTab() {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    this.currentTab = tab;
+  }
+
+  async loadSettings() {
+    const result = await chrome.storage.sync.get('settings');
+    this.settings = result.settings || { enabled: true };
+  }
+
+  initializeUI() {
+    // 更新状态显示
+    this.updateStatus();
+    
+    // 更新切换按钮
+    this.updateToggleButton();
+  }
+
+  bindEvents() {
+    // 设置按钮
+    document.getElementById('settingsBtn').addEventListener('click', this.openSettings.bind(this));
+    
+    // 切换按钮
+    document.getElementById('toggleBtn').addEventListener('click', this.toggleExtension.bind(this));
+    
+    // 操作按钮
+    document.getElementById('analyzePageBtn').addEventListener('click', this.analyzePage.bind(this));
+    document.getElementById('exportDataBtn').addEventListener('click', this.exportData.bind(this));
+    document.getElementById('clearDataBtn').addEventListener('click', this.clearData.bind(this));
+    
+    // 帮助链接
+    document.getElementById('helpLink').addEventListener('click', this.openHelp.bind(this));
+  }
+
+  async loadData() {
+    try {
+      // 加载统计数据
+      await this.loadStats();
+      
+      // 加载最近活动
+      await this.loadRecentActivity();
+      
+    } catch (error) {
+      console.error('加载数据失败:', error);
+      this.showError('加载数据失败');
+    }
+  }
+
+  async loadStats() {
+    const result = await chrome.storage.local.get(['processedCount', 'savedItems']);
+    
+    document.getElementById('processedCount').textContent = result.processedCount || 0;
+    document.getElementById('savedItems').textContent = result.savedItems || 0;
+  }
+
+  async loadRecentActivity() {
+    const result = await chrome.storage.local.get('recentActivity');
+    const activities = result.recentActivity || [];
+    
+    const listElement = document.getElementById('recentList');
+    
+    if (activities.length === 0) {
+      listElement.innerHTML = '<div class="empty-state">暂无活动记录</div>';
+      return;
+    }
+    
+    listElement.innerHTML = activities
+      .slice(-5) // 只显示最近5条
+      .reverse()
+      .map(activity => `
+        <div class="activity-item">
+          <div class="activity-title">${activity.title}</div>
+          <div class="activity-url">${this.truncateUrl(activity.url)}</div>
+          <div class="activity-time">${this.formatTime(activity.timestamp)}</div>
+        </div>
+      `).join('');
+  }
+
+  updateStatus() {
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    
+    if (this.settings.enabled) {
+      statusDot.className = 'status-dot active';
+      statusText.textContent = '扩展已启用';
+    } else {
+      statusDot.className = 'status-dot inactive';
+      statusText.textContent = '扩展已禁用';
+    }
+  }
+
+  updateToggleButton() {
+    const toggleBtn = document.getElementById('toggleBtn');
+    toggleBtn.textContent = this.settings.enabled ? '禁用' : '启用';
+    toggleBtn.className = `toggle-btn ${this.settings.enabled ? 'active' : ''}`;
+  }
+
+  async toggleExtension() {
+    try {
+      this.settings.enabled = !this.settings.enabled;
+      
+      await chrome.storage.sync.set({ settings: this.settings });
+      
+      this.updateStatus();
+      this.updateToggleButton();
+      
+      // 通知后台脚本设置已更改
+      chrome.runtime.sendMessage({
+        action: 'settingsChanged',
+        settings: this.settings
+      });
+      
+      this.showSuccess(this.settings.enabled ? '扩展已启用' : '扩展已禁用');
+      
+    } catch (error) {
+      console.error('切换扩展状态失败:', error);
+      this.showError('操作失败');
+    }
+  }
+
+  async analyzePage() {
+    if (!this.currentTab) {
+      this.showError('无法获取当前页面信息');
+      return;
+    }
+
+    try {
+      const analyzeBtn = document.getElementById('analyzePageBtn');
+      analyzeBtn.textContent = '分析中...';
+      analyzeBtn.disabled = true;
+
+      // 向内容脚本发送分析请求
+      const response = await this.sendMessageToTab({
+        action: 'getPageData'
+      });
+
+      if (response.success) {
+        // 将数据发送到后台脚本处理
+        const result = await chrome.runtime.sendMessage({
+          action: 'analyzePageData',
+          data: response.data,
+          tabInfo: {
+            id: this.currentTab.id,
+            url: this.currentTab.url,
+            title: this.currentTab.title
+          }
+        });
+
+        if (result.success) {
+          this.showSuccess('页面分析完成');
+          await this.loadData(); // 重新加载数据
+        } else {
+          this.showError('分析失败: ' + result.error);
+        }
+      } else {
+        this.showError('获取页面数据失败');
+      }
+
+    } catch (error) {
+      console.error('分析页面失败:', error);
+      this.showError('分析失败');
+    } finally {
+      const analyzeBtn = document.getElementById('analyzePageBtn');
+      analyzeBtn.textContent = '分析当前页面';
+      analyzeBtn.disabled = false;
+    }
+  }
+
+  async exportData() {
+    try {
+      const result = await chrome.storage.local.get(null);
+      const exportData = {
+        settings: this.settings,
+        data: result,
+        exportTime: new Date().toISOString()
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+        type: 'application/json'
+      });
+
+      const url = URL.createObjectURL(blob);
+      const filename = `extension-data-${new Date().toISOString().split('T')[0]}.json`;
+
+      // 创建下载链接
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+
+      URL.revokeObjectURL(url);
+      this.showSuccess('数据导出成功');
+
+    } catch (error) {
+      console.error('导出数据失败:', error);
+      this.showError('导出失败');
+    }
+  }
+
+  async clearData() {
+    if (!confirm('确定要清除所有数据吗？此操作不可撤销。')) {
+      return;
+    }
+
+    try {
+      await chrome.storage.local.clear();
+      await this.loadData();
+      this.showSuccess('数据已清除');
+    } catch (error) {
+      console.error('清除数据失败:', error);
+      this.showError('清除失败');
+    }
+  }
+
+  openSettings() {
+    chrome.tabs.create({ url: 'src/options/options.html' });
+    window.close();
+  }
+
+  openHelp() {
+    chrome.tabs.create({ url: 'https://help.example.com' });
+  }
+
+  async sendMessageToTab(message) {
+    return new Promise((resolve) => {
+      chrome.tabs.sendMessage(this.currentTab.id, message, (response) => {
+        if (chrome.runtime.lastError) {
+          resolve({ success: false, error: chrome.runtime.lastError.message });
+        } else {
+          resolve(response || { success: false, error: '无响应' });
+        }
+      });
+    });
+  }
+
+  truncateUrl(url, maxLength = 30) {
+    if (url.length <= maxLength) return url;
+    return url.substring(0, maxLength) + '...';
+  }
+
+  formatTime(timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+
+    if (diff < 60000) { // 1分钟内
+      return '刚刚';
+    } else if (diff < 3600000) { // 1小时内
+      return `${Math.floor(diff / 60000)}分钟前`;
+    } else if (diff < 86400000) { // 24小时内
+      return `${Math.floor(diff / 3600000)}小时前`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  }
+
+  showSuccess(message) {
+    this.showNotification(message, 'success');
+  }
+
+  showError(message) {
+    this.showNotification(message, 'error');
+  }
+
+  showNotification(message, type) {
+    // 创建通知元素
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.textContent = message;
+
+    document.body.appendChild(notification);
+
+    // 自动移除
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 3000);
+  }
+}
+
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', () => {
+  new PopupManager();
+});
+```
+
+## 7. 存储管理规范
+### Chrome Storage API使用
+```javascript
+// ✅ utils/storage.js
+class StorageManager {
+  constructor() {
+    this.listeners = new Map();
+  }
+
+  // 同步存储（跨设备同步，容量小）
+  async setSync(key, value) {
+    try {
+      await chrome.storage.sync.set({ [key]: value });
+      this.notifyListeners('sync', key, value);
+    } catch (error) {
+      console.error('同步存储失败:', error);
+      throw error;
+    }
+  }
+
+  async getSync(key) {
+    try {
+      const result = await chrome.storage.sync.get(key);
+      return result[key];
+    } catch (error) {
+      console.error('获取同步数据失败:', error);
+      return null;
+    }
+  }
+
+  // 本地存储（本地设备，容量大）
+  async setLocal(key, value) {
+    try {
+      await chrome.storage.local.set({ [key]: value });
+      this.notifyListeners('local', key, value);
+    } catch (error) {
+      console.error('本地存储失败:', error);
+      throw error;
+    }
+  }
+
+  async getLocal(key) {
+    try {
+      const result = await chrome.storage.local.get(key);
+      return result[key];
+    } catch (error) {
+      console.error('获取本地数据失败:', error);
+      return null;
+    }
+  }
+
+  // 批量操作
+  async setBatch(storageType, data) {
+    try {
+      const storage = storageType === 'sync' ? chrome.storage.sync : chrome.storage.local;
+      await storage.set(data);
+      
+      Object.entries(data).forEach(([key, value]) => {
+        this.notifyListeners(storageType, key, value);
+      });
+    } catch (error) {
+      console.error('批量存储失败:', error);
+      throw error;
+    }
+  }
+
+  async getBatch(storageType, keys) {
+    try {
+      const storage = storageType === 'sync' ? chrome.storage.sync : chrome.storage.local;
+      return await storage.get(keys);
+    } catch (error) {
+      console.error('批量获取失败:', error);
+      return {};
+    }
+  }
+
+  // 删除数据
+  async remove(storageType, keys) {
+    try {
+      const storage = storageType === 'sync' ? chrome.storage.sync : chrome.storage.local;
+      await storage.remove(keys);
+      
+      const keyArray = Array.isArray(keys) ? keys : [keys];
+      keyArray.forEach(key => {
+        this.notifyListeners(storageType, key, undefined, 'removed');
+      });
+    } catch (error) {
+      console.error('删除数据失败:', error);
+      throw error;
+    }
+  }
+
+  // 清空存储
+  async clear(storageType) {
+    try {
+      const storage = storageType === 'sync' ? chrome.storage.sync : chrome.storage.local;
+      await storage.clear();
+      this.notifyListeners(storageType, null, null, 'cleared');
+    } catch (error) {
+      console.error('清空存储失败:', error);
+      throw error;
+    }
+  }
+
+  // 监听存储变化
+  addListener(callback) {
+    const listener = (changes, areaName) => {
+      callback(changes, areaName);
+    };
+    
+    chrome.storage.onChanged.addListener(listener);
+    return listener;
+  }
+
+  removeListener(listener) {
+    chrome.storage.onChanged.removeListener(listener);
+  }
+
+  // 内部监听器管理
+  notifyListeners(storageType, key, value, action = 'set') {
+    const listenerId = `${storageType}:${key}`;
+    const listeners = this.listeners.get(listenerId) || [];
+    
+    listeners.forEach(callback => {
+      try {
+        callback({ key, value, action, storageType });
+      } catch (error) {
+        console.error('监听器回调失败:', error);
+      }
+    });
+  }
+
+  // 特定键的监听器
+  onKeyChange(storageType, key, callback) {
+    const listenerId = `${storageType}:${key}`;
+    const listeners = this.listeners.get(listenerId) || [];
+    listeners.push(callback);
+    this.listeners.set(listenerId, listeners);
+
+    // 返回移除监听器的函数
+    return () => {
+      const currentListeners = this.listeners.get(listenerId) || [];
+      const index = currentListeners.indexOf(callback);
+      if (index > -1) {
+        currentListeners.splice(index, 1);
+        this.listeners.set(listenerId, currentListeners);
+      }
+    };
+  }
+
+  // 获取存储使用情况
+  async getStorageUsage() {
+    try {
+      const syncUsage = await chrome.storage.sync.getBytesInUse();
+      const localUsage = await chrome.storage.local.getBytesInUse();
+      
+      return {
+        sync: {
+          used: syncUsage,
+          total: chrome.storage.sync.QUOTA_BYTES,
+          percentage: (syncUsage / chrome.storage.sync.QUOTA_BYTES) * 100
+        },
+        local: {
+          used: localUsage,
+          total: chrome.storage.local.QUOTA_BYTES,
+          percentage: (localUsage / chrome.storage.local.QUOTA_BYTES) * 100
+        }
+      };
+    } catch (error) {
+      console.error('获取存储使用情况失败:', error);
+      return null;
+    }
+  }
+}
+
+// 创建全局实例
+const storageManager = new StorageManager();
+
+// 导出便捷方法
+export const storage = {
+  // 同步存储
+  setSync: (key, value) => storageManager.setSync(key, value),
+  getSync: (key) => storageManager.getSync(key),
+  
+  // 本地存储
+  setLocal: (key, value) => storageManager.setLocal(key, value),
+  getLocal: (key) => storageManager.getLocal(key),
+  
+  // 批量操作
+  setBatch: (type, data) => storageManager.setBatch(type, data),
+  getBatch: (type, keys) => storageManager.getBatch(type, keys),
+  
+  // 删除和清空
+  remove: (type, keys) => storageManager.remove(type, keys),
+  clear: (type) => storageManager.clear(type),
+  
+  // 监听器
+  addListener: (callback) => storageManager.addListener(callback),
+  removeListener: (listener) => storageManager.removeListener(listener),
+  onKeyChange: (type, key, callback) => storageManager.onKeyChange(type, key, callback),
+  
+  // 使用情况
+  getUsage: () => storageManager.getStorageUsage()
+};
+
+export default storageManager;
+```
+
+这个Chrome扩展开发规则模板涵盖了：
+- 项目结构和Manifest配置
+- 后台脚本开发规范
+- 内容脚本开发规范
+- 弹窗页面实现
+- 存储管理规范
+
+它为Chrome扩展开发提供了完整的指导，帮助开发者构建功能强大的浏览器扩展。

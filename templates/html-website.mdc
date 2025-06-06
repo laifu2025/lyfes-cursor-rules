@@ -1,0 +1,1379 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 来福哥的HTML网站开发规则
+
+**适用范围**: 基于HTML/CSS/JavaScript的网站开发  
+
+## 1. 框架概述
+
+### 1.1 HTML网站开发简介
+HTML网站开发是Web开发的基础，具有以下特性：
+- 标准化的Web技术栈
+- 跨平台兼容性好
+- SEO友好
+- 加载速度快
+- 维护成本低
+
+### 1.2 技术栈
+- **标记语言**: HTML5
+- **样式语言**: CSS3 / Sass / Less
+- **脚本语言**: JavaScript / TypeScript
+- **构建工具**: Webpack / Vite / Gulp
+- **CSS框架**: Bootstrap / Tailwind CSS / Bulma
+- **JavaScript库**: jQuery / Lodash / Axios
+
+## 2. 项目结构规范
+```
+website/
+├── index.html                    # 首页
+├── pages/                        # 页面文件
+│   ├── about.html               # 关于页面
+│   ├── contact.html             # 联系页面
+│   └── blog/                    # 博客页面
+├── assets/                       # 静态资源
+│   ├── css/                     # 样式文件
+│   │   ├── style.css           # 主样式
+│   │   ├── components.css      # 组件样式
+│   │   └── responsive.css      # 响应式样式
+│   ├── js/                      # JavaScript文件
+│   │   ├── main.js             # 主脚本
+│   │   ├── utils.js            # 工具函数
+│   │   └── components/         # 组件脚本
+│   ├── images/                  # 图片资源
+│   ├── fonts/                   # 字体文件
+│   └── icons/                   # 图标文件
+├── scss/                         # Sass源文件
+│   ├── _variables.scss          # 变量定义
+│   ├── _mixins.scss            # 混入函数
+│   ├── _components.scss        # 组件样式
+│   └── main.scss               # 主样式文件
+├── dist/                         # 构建输出
+├── package.json                  # 项目配置
+└── README.md                     # 项目说明
+```
+
+## 3. HTML开发规范
+
+### 3.1 HTML5语义化
+```html
+<!-- ✅ 标准HTML5文档结构 -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="网站描述">
+    <meta name="keywords" content="关键词1,关键词2,关键词3">
+    <meta name="author" content="作者名称">
+    
+    <!-- Open Graph标签 -->
+    <meta property="og:title" content="页面标题">
+    <meta property="og:description" content="页面描述">
+    <meta property="og:image" content="分享图片URL">
+    <meta property="og:url" content="页面URL">
+    
+    <title>页面标题 - 网站名称</title>
+    
+    <!-- 预加载关键资源 -->
+    <link rel="preload" href="/assets/fonts/main.woff2" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="/assets/css/style.css" as="style">
+    
+    <!-- 样式表 -->
+    <link rel="stylesheet" href="/assets/css/style.css">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+</head>
+<body>
+    <!-- 页面头部 -->
+    <header class="site-header">
+        <nav class="main-navigation" role="navigation" aria-label="主导航">
+            <div class="nav-container">
+                <a href="/" class="logo" aria-label="返回首页">
+                    <img src="/assets/images/logo.svg" alt="网站Logo">
+                </a>
+                
+                <ul class="nav-menu">
+                    <li><a href="/" aria-current="page">首页</a></li>
+                    <li><a href="/pages/about.html">关于我们</a></li>
+                    <li><a href="/pages/blog/">博客</a></li>
+                    <li><a href="/pages/contact.html">联系我们</a></li>
+                </ul>
+                
+                <button class="mobile-menu-toggle" aria-label="切换移动菜单">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <!-- 主要内容 -->
+    <main class="main-content" role="main">
+        <!-- 英雄区域 -->
+        <section class="hero-section" aria-labelledby="hero-title">
+            <div class="hero-container">
+                <h1 id="hero-title" class="hero-title">欢迎来到我们的网站</h1>
+                <p class="hero-description">这里是网站的主要描述内容</p>
+                <a href="#features" class="cta-button" role="button">了解更多</a>
+            </div>
+        </section>
+
+        <!-- 特性区域 -->
+        <section id="features" class="features-section" aria-labelledby="features-title">
+            <div class="container">
+                <h2 id="features-title" class="section-title">我们的特色</h2>
+                
+                <div class="features-grid">
+                    <article class="feature-card">
+                        <div class="feature-icon">
+                            <img src="/assets/icons/feature1.svg" alt="">
+                        </div>
+                        <h3 class="feature-title">快速响应</h3>
+                        <p class="feature-description">提供快速、高效的服务响应</p>
+                    </article>
+                    
+                    <article class="feature-card">
+                        <div class="feature-icon">
+                            <img src="/assets/icons/feature2.svg" alt="">
+                        </div>
+                        <h3 class="feature-title">专业团队</h3>
+                        <p class="feature-description">拥有经验丰富的专业团队</p>
+                    </article>
+                    
+                    <article class="feature-card">
+                        <div class="feature-icon">
+                            <img src="/assets/icons/feature3.svg" alt="">
+                        </div>
+                        <h3 class="feature-title">优质服务</h3>
+                        <p class="feature-description">提供高质量的客户服务</p>
+                    </article>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 页面底部 -->
+    <footer class="site-footer" role="contentinfo">
+        <div class="footer-container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h4>联系信息</h4>
+                    <address>
+                        <p>地址：北京市朝阳区XXX路XXX号</p>
+                        <p>电话：<a href="tel:+86-10-12345678">010-12345678</a></p>
+                        <p>邮箱：<a href="mailto:info@example.com">info@example.com</a></p>
+                    </address>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>快速链接</h4>
+                    <nav aria-label="底部导航">
+                        <ul>
+                            <li><a href="/pages/privacy.html">隐私政策</a></li>
+                            <li><a href="/pages/terms.html">服务条款</a></li>
+                            <li><a href="/sitemap.xml">网站地图</a></li>
+                        </ul>
+                    </nav>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>关注我们</h4>
+                    <div class="social-links">
+                        <a href="#" aria-label="微博" class="social-link">
+                            <img src="/assets/icons/weibo.svg" alt="微博">
+                        </a>
+                        <a href="#" aria-label="微信" class="social-link">
+                            <img src="/assets/icons/wechat.svg" alt="微信">
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2024 网站名称. 保留所有权利.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript文件 -->
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>
+```
+
+## 4. CSS开发规范
+
+### 4.1 CSS基础规范
+```css
+/* ✅ CSS重置和基础样式 */
+
+/* CSS重置 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* 根元素设置 */
+:root {
+    /* 颜色变量 */
+    --primary-color: #2563eb;
+    --secondary-color: #64748b;
+    --accent-color: #f59e0b;
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
+    --text-muted: #9ca3af;
+    --background-primary: #ffffff;
+    --background-secondary: #f8fafc;
+    --border-color: #e5e7eb;
+    
+    /* 字体变量 */
+    --font-family-base: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-family-heading: 'Inter', sans-serif;
+    --font-family-mono: 'JetBrains Mono', Consolas, Monaco, monospace;
+    
+    /* 字号变量 */
+    --font-size-xs: 0.75rem;     /* 12px */
+    --font-size-sm: 0.875rem;    /* 14px */
+    --font-size-base: 1rem;      /* 16px */
+    --font-size-lg: 1.125rem;    /* 18px */
+    --font-size-xl: 1.25rem;     /* 20px */
+    --font-size-2xl: 1.5rem;     /* 24px */
+    --font-size-3xl: 1.875rem;   /* 30px */
+    --font-size-4xl: 2.25rem;    /* 36px */
+    
+    /* 间距变量 */
+    --spacing-xs: 0.25rem;       /* 4px */
+    --spacing-sm: 0.5rem;        /* 8px */
+    --spacing-md: 1rem;          /* 16px */
+    --spacing-lg: 1.5rem;        /* 24px */
+    --spacing-xl: 2rem;          /* 32px */
+    --spacing-2xl: 3rem;         /* 48px */
+    
+    /* 阴影变量 */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    
+    /* 圆角变量 */
+    --radius-sm: 0.25rem;        /* 4px */
+    --radius-md: 0.5rem;         /* 8px */
+    --radius-lg: 0.75rem;        /* 12px */
+    --radius-xl: 1rem;           /* 16px */
+    
+    /* 过渡变量 */
+    --transition-fast: 150ms ease-in-out;
+    --transition-normal: 300ms ease-in-out;
+    --transition-slow: 500ms ease-in-out;
+}
+
+/* 基础元素样式 */
+html {
+    font-size: 16px;
+    line-height: 1.6;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--font-family-base);
+    font-size: var(--font-size-base);
+    color: var(--text-primary);
+    background-color: var(--background-primary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* 标题样式 */
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-family-heading);
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-md);
+}
+
+h1 { font-size: var(--font-size-4xl); }
+h2 { font-size: var(--font-size-3xl); }
+h3 { font-size: var(--font-size-2xl); }
+h4 { font-size: var(--font-size-xl); }
+h5 { font-size: var(--font-size-lg); }
+h6 { font-size: var(--font-size-base); }
+
+/* 段落样式 */
+p {
+    margin-bottom: var(--spacing-md);
+    line-height: 1.7;
+}
+
+/* 链接样式 */
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+a:hover {
+    color: var(--accent-color);
+    text-decoration: underline;
+}
+
+a:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* 图片样式 */
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* 列表样式 */
+ul, ol {
+    margin-bottom: var(--spacing-md);
+    padding-left: var(--spacing-lg);
+}
+
+li {
+    margin-bottom: var(--spacing-xs);
+}
+
+/* 表格样式 */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: var(--spacing-lg);
+}
+
+th, td {
+    padding: var(--spacing-sm) var(--spacing-md);
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+th {
+    font-weight: 600;
+    background-color: var(--background-secondary);
+}
+
+/* 表单样式 */
+input, textarea, select, button {
+    font-family: inherit;
+    font-size: inherit;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="tel"],
+input[type="url"],
+textarea,
+select {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background-color: var(--background-primary);
+    transition: border-color var(--transition-fast);
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* 按钮样式 */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    text-align: center;
+    text-decoration: none;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    user-select: none;
+}
+
+.btn:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #1d4ed8;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.btn-secondary {
+    background-color: var(--background-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.btn-secondary:hover {
+    background-color: #e2e8f0;
+}
+
+/* 实用工具类 */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-md);
+}
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.hidden { display: none; }
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* 响应式网格 */
+.grid {
+    display: grid;
+    gap: var(--spacing-lg);
+}
+
+.grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* Flexbox工具 */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+```
+
+### 4.2 组件样式规范
+```css
+/* ✅ 组件样式 */
+
+/* 导航组件 */
+.site-header {
+    background-color: var(--background-primary);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: var(--shadow-sm);
+}
+
+.main-navigation {
+    padding: var(--spacing-md) 0;
+}
+
+.nav-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 var(--spacing-md);
+}
+
+.logo img {
+    height: 40px;
+    width: auto;
+}
+
+.nav-menu {
+    display: flex;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    gap: var(--spacing-lg);
+}
+
+.nav-menu a {
+    font-weight: 500;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+}
+
+.nav-menu a:hover,
+.nav-menu a[aria-current="page"] {
+    background-color: var(--background-secondary);
+    text-decoration: none;
+}
+
+.mobile-menu-toggle {
+    display: none;
+    flex-direction: column;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--spacing-sm);
+}
+
+.mobile-menu-toggle span {
+    display: block;
+    width: 25px;
+    height: 3px;
+    background-color: var(--text-primary);
+    margin: 3px 0;
+    transition: var(--transition-fast);
+}
+
+/* 卡片组件 */
+.card {
+    background-color: var(--background-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    padding: var(--spacing-lg);
+    transition: all var(--transition-normal);
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+}
+
+.card-header {
+    margin-bottom: var(--spacing-md);
+}
+
+.card-title {
+    font-size: var(--font-size-xl);
+    margin-bottom: var(--spacing-sm);
+}
+
+.card-content {
+    margin-bottom: var(--spacing-md);
+}
+
+.card-footer {
+    border-top: 1px solid var(--border-color);
+    padding-top: var(--spacing-md);
+}
+
+/* 模态框组件 */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all var(--transition-normal);
+}
+
+.modal.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background-color: var(--background-primary);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-xl);
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    transform: scale(0.9);
+    transition: transform var(--transition-normal);
+}
+
+.modal.active .modal-content {
+    transform: scale(1);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-lg);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: var(--font-size-xl);
+    cursor: pointer;
+    padding: var(--spacing-xs);
+    border-radius: var(--radius-sm);
+    transition: background-color var(--transition-fast);
+}
+
+.modal-close:hover {
+    background-color: var(--background-secondary);
+}
+
+/* 表单组件 */
+.form-group {
+    margin-bottom: var(--spacing-lg);
+}
+
+.form-label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: var(--spacing-xs);
+    color: var(--text-primary);
+}
+
+.form-input {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    transition: all var(--transition-fast);
+}
+
+.form-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    outline: none;
+}
+
+.form-error {
+    color: #ef4444;
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-xs);
+}
+
+.form-help {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-xs);
+}
+
+/* 加载状态组件 */
+.loading {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid var(--border-color);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 3000;
+}
+
+/* 通知组件 */
+.toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: var(--background-primary);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: var(--spacing-md) var(--spacing-lg);
+    max-width: 400px;
+    z-index: 4000;
+    transform: translateX(100%);
+    transition: transform var(--transition-normal);
+}
+
+.toast.show {
+    transform: translateX(0);
+}
+
+.toast-success {
+    border-left: 4px solid #10b981;
+}
+
+.toast-error {
+    border-left: 4px solid #ef4444;
+}
+
+.toast-warning {
+    border-left: 4px solid #f59e0b;
+}
+
+.toast-info {
+    border-left: 4px solid var(--primary-color);
+}
+```
+
+## 5. JavaScript开发规范
+
+### 5.1 现代JavaScript编写规范
+```javascript
+// ✅ 主要JavaScript文件 - main.js
+
+/**
+ * 网站主要功能模块
+ */
+class WebsiteApp {
+    constructor() {
+        this.isInitialized = false;
+        this.components = new Map();
+        this.eventListeners = [];
+        
+        // 绑定方法上下文
+        this.handleResize = this.handleResize.bind(this);
+        this.handleScroll = this.handleScroll.bind(this);
+        
+        this.init();
+    }
+
+    /**
+     * 初始化应用
+     */
+    async init() {
+        if (this.isInitialized) return;
+
+        try {
+            // 检查浏览器支持
+            this.checkBrowserSupport();
+            
+            // 初始化组件
+            await this.initComponents();
+            
+            // 绑定全局事件
+            this.bindGlobalEvents();
+            
+            // 设置完成标识
+            this.isInitialized = true;
+            
+            console.log('网站应用初始化完成');
+            
+        } catch (error) {
+            console.error('应用初始化失败:', error);
+        }
+    }
+
+    /**
+     * 检查浏览器支持
+     */
+    checkBrowserSupport() {
+        const features = {
+            fetch: 'fetch' in window,
+            promise: 'Promise' in window,
+            intersectionObserver: 'IntersectionObserver' in window,
+            customElements: 'customElements' in window
+        };
+
+        const unsupported = Object.entries(features)
+            .filter(([feature, supported]) => !supported)
+            .map(([feature]) => feature);
+
+        if (unsupported.length > 0) {
+            console.warn('浏览器不支持以下特性:', unsupported);
+            this.showBrowserWarning();
+        }
+    }
+
+    /**
+     * 显示浏览器兼容警告
+     */
+    showBrowserWarning() {
+        const warning = document.createElement('div');
+        warning.className = 'browser-warning';
+        warning.innerHTML = `
+            <div class="warning-content">
+                <p>您的浏览器版本过低，可能影响网站正常使用。</p>
+                <p>建议升级到最新版本的Chrome、Firefox或Safari。</p>
+                <button onclick="this.parentElement.parentElement.remove()">关闭</button>
+            </div>
+        `;
+        document.body.insertBefore(warning, document.body.firstChild);
+    }
+
+    /**
+     * 初始化所有组件
+     */
+    async initComponents() {
+        // 初始化导航组件
+        const navigation = new NavigationComponent();
+        this.components.set('navigation', navigation);
+
+        // 初始化滚动监听
+        const scrollWatcher = new ScrollWatcher();
+        this.components.set('scrollWatcher', scrollWatcher);
+
+        // 初始化表单处理
+        const formHandler = new FormHandler();
+        this.components.set('formHandler', formHandler);
+
+        // 初始化模态框
+        const modalManager = new ModalManager();
+        this.components.set('modalManager', modalManager);
+
+        // 初始化懒加载
+        const lazyLoader = new LazyLoader();
+        this.components.set('lazyLoader', lazyLoader);
+
+        console.log('组件初始化完成');
+    }
+
+    /**
+     * 绑定全局事件
+     */
+    bindGlobalEvents() {
+        // 窗口大小变化
+        window.addEventListener('resize', this.handleResize);
+        this.eventListeners.push({ element: window, event: 'resize', handler: this.handleResize });
+
+        // 滚动事件
+        window.addEventListener('scroll', this.handleScroll, { passive: true });
+        this.eventListeners.push({ element: window, event: 'scroll', handler: this.handleScroll });
+
+        // 页面可见性变化
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                console.log('页面隐藏');
+            } else {
+                console.log('页面显示');
+            }
+        });
+    }
+
+    /**
+     * 处理窗口大小变化
+     */
+    handleResize() {
+        // 防抖处理
+        clearTimeout(this.resizeTimer);
+        this.resizeTimer = setTimeout(() => {
+            this.components.forEach(component => {
+                if (typeof component.handleResize === 'function') {
+                    component.handleResize();
+                }
+            });
+        }, 100);
+    }
+
+    /**
+     * 处理滚动事件
+     */
+    handleScroll() {
+        // 节流处理
+        if (!this.scrolling) {
+            this.scrolling = true;
+            requestAnimationFrame(() => {
+                this.components.forEach(component => {
+                    if (typeof component.handleScroll === 'function') {
+                        component.handleScroll();
+                    }
+                });
+                this.scrolling = false;
+            });
+        }
+    }
+
+    /**
+     * 销毁应用
+     */
+    destroy() {
+        // 移除所有事件监听器
+        this.eventListeners.forEach(({ element, event, handler }) => {
+            element.removeEventListener(event, handler);
+        });
+
+        // 销毁所有组件
+        this.components.forEach(component => {
+            if (typeof component.destroy === 'function') {
+                component.destroy();
+            }
+        });
+
+        // 清空状态
+        this.components.clear();
+        this.eventListeners = [];
+        this.isInitialized = false;
+    }
+}
+
+/**
+ * 导航组件
+ */
+class NavigationComponent {
+    constructor() {
+        this.nav = document.querySelector('.main-navigation');
+        this.menuToggle = document.querySelector('.mobile-menu-toggle');
+        this.menuItems = document.querySelectorAll('.nav-menu a');
+        
+        this.isMenuOpen = false;
+        
+        this.init();
+    }
+
+    init() {
+        if (!this.nav) return;
+
+        // 绑定移动菜单切换
+        if (this.menuToggle) {
+            this.menuToggle.addEventListener('click', this.toggleMobileMenu.bind(this));
+        }
+
+        // 绑定菜单项点击
+        this.menuItems.forEach(item => {
+            item.addEventListener('click', this.handleMenuClick.bind(this));
+        });
+
+        // 设置当前页面菜单项
+        this.setActiveMenuItem();
+    }
+
+    toggleMobileMenu() {
+        this.isMenuOpen = !this.isMenuOpen;
+        this.nav.classList.toggle('menu-open', this.isMenuOpen);
+        
+        // 更新切换按钮状态
+        this.menuToggle.setAttribute('aria-expanded', this.isMenuOpen.toString());
+    }
+
+    handleMenuClick(event) {
+        // 移动端菜单点击后自动关闭
+        if (window.innerWidth <= 768) {
+            this.isMenuOpen = false;
+            this.nav.classList.remove('menu-open');
+        }
+    }
+
+    setActiveMenuItem() {
+        const currentPath = window.location.pathname;
+        
+        this.menuItems.forEach(item => {
+            const href = item.getAttribute('href');
+            if (href === currentPath || (href === '/' && currentPath === '/index.html')) {
+                item.setAttribute('aria-current', 'page');
+            } else {
+                item.removeAttribute('aria-current');
+            }
+        });
+    }
+
+    handleResize() {
+        // 大屏幕时关闭移动菜单
+        if (window.innerWidth > 768 && this.isMenuOpen) {
+            this.isMenuOpen = false;
+            this.nav.classList.remove('menu-open');
+        }
+    }
+}
+
+/**
+ * 滚动监听组件
+ */
+class ScrollWatcher {
+    constructor() {
+        this.header = document.querySelector('.site-header');
+        this.scrollPosition = 0;
+        this.isScrolled = false;
+        
+        this.init();
+    }
+
+    init() {
+        if (!this.header) return;
+        
+        this.handleScroll();
+    }
+
+    handleScroll() {
+        const currentScroll = window.pageYOffset;
+        
+        // 添加滚动状态类
+        if (currentScroll > 100 && !this.isScrolled) {
+            this.isScrolled = true;
+            this.header.classList.add('scrolled');
+        } else if (currentScroll <= 100 && this.isScrolled) {
+            this.isScrolled = false;
+            this.header.classList.remove('scrolled');
+        }
+
+        this.scrollPosition = currentScroll;
+    }
+}
+
+/**
+ * 表单处理组件
+ */
+class FormHandler {
+    constructor() {
+        this.forms = document.querySelectorAll('form');
+        this.init();
+    }
+
+    init() {
+        this.forms.forEach(form => {
+            form.addEventListener('submit', this.handleSubmit.bind(this));
+            
+            // 实时验证
+            const inputs = form.querySelectorAll('input, textarea, select');
+            inputs.forEach(input => {
+                input.addEventListener('blur', this.validateField.bind(this));
+                input.addEventListener('input', this.clearErrors.bind(this));
+            });
+        });
+    }
+
+    async handleSubmit(event) {
+        event.preventDefault();
+        
+        const form = event.target;
+        const formData = new FormData(form);
+        
+        // 验证表单
+        if (!this.validateForm(form)) {
+            return;
+        }
+
+        // 显示加载状态
+        this.setFormLoading(form, true);
+
+        try {
+            // 提交表单数据
+            const response = await fetch(form.action || '/api/contact', {
+                method: form.method || 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                this.showSuccess('表单提交成功！');
+                form.reset();
+            } else {
+                throw new Error('提交失败');
+            }
+
+        } catch (error) {
+            console.error('表单提交失败:', error);
+            this.showError('提交失败，请稍后重试');
+        } finally {
+            this.setFormLoading(form, false);
+        }
+    }
+
+    validateForm(form) {
+        let isValid = true;
+        const inputs = form.querySelectorAll('input[required], textarea[required], select[required]');
+        
+        inputs.forEach(input => {
+            if (!this.validateField({ target: input })) {
+                isValid = false;
+            }
+        });
+
+        return isValid;
+    }
+
+    validateField(event) {
+        const input = event.target;
+        const value = input.value.trim();
+        const type = input.type;
+        
+        this.clearFieldError(input);
+
+        // 必填验证
+        if (input.hasAttribute('required') && !value) {
+            this.showFieldError(input, '此字段为必填项');
+            return false;
+        }
+
+        // 邮箱验证
+        if (type === 'email' && value) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(value)) {
+                this.showFieldError(input, '请输入有效的邮箱地址');
+                return false;
+            }
+        }
+
+        // 电话验证
+        if (type === 'tel' && value) {
+            const phoneRegex = /^1[3-9]\d{9}$/;
+            if (!phoneRegex.test(value)) {
+                this.showFieldError(input, '请输入有效的手机号码');
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    showFieldError(input, message) {
+        input.classList.add('error');
+        
+        let errorElement = input.parentNode.querySelector('.form-error');
+        if (!errorElement) {
+            errorElement = document.createElement('div');
+            errorElement.className = 'form-error';
+            input.parentNode.appendChild(errorElement);
+        }
+        errorElement.textContent = message;
+    }
+
+    clearFieldError(input) {
+        input.classList.remove('error');
+        const errorElement = input.parentNode.querySelector('.form-error');
+        if (errorElement) {
+            errorElement.remove();
+        }
+    }
+
+    clearErrors(event) {
+        this.clearFieldError(event.target);
+    }
+
+    setFormLoading(form, loading) {
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = loading;
+            submitBtn.textContent = loading ? '提交中...' : '提交';
+        }
+    }
+
+    showSuccess(message) {
+        this.showToast(message, 'success');
+    }
+
+    showError(message) {
+        this.showToast(message, 'error');
+    }
+
+    showToast(message, type) {
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.textContent = message;
+        
+        document.body.appendChild(toast);
+        
+        // 显示动画
+        setTimeout(() => toast.classList.add('show'), 100);
+        
+        // 自动关闭
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+}
+
+/**
+ * 模态框管理组件
+ */
+class ModalManager {
+    constructor() {
+        this.modals = new Map();
+        this.init();
+    }
+
+    init() {
+        // 查找所有模态框触发器
+        const triggers = document.querySelectorAll('[data-modal-target]');
+        triggers.forEach(trigger => {
+            trigger.addEventListener('click', this.handleTriggerClick.bind(this));
+        });
+
+        // 查找所有模态框
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            this.registerModal(modal);
+        });
+    }
+
+    registerModal(modalElement) {
+        const id = modalElement.id;
+        if (!id) return;
+
+        const modal = {
+            element: modalElement,
+            closeButtons: modalElement.querySelectorAll('.modal-close, [data-modal-close]'),
+            isOpen: false
+        };
+
+        // 绑定关闭按钮
+        modal.closeButtons.forEach(btn => {
+            btn.addEventListener('click', () => this.closeModal(id));
+        });
+
+        // 绑定背景点击关闭
+        modalElement.addEventListener('click', (event) => {
+            if (event.target === modalElement) {
+                this.closeModal(id);
+            }
+        });
+
+        this.modals.set(id, modal);
+    }
+
+    handleTriggerClick(event) {
+        event.preventDefault();
+        const target = event.target.getAttribute('data-modal-target');
+        if (target) {
+            this.openModal(target);
+        }
+    }
+
+    openModal(id) {
+        const modal = this.modals.get(id);
+        if (!modal || modal.isOpen) return;
+
+        modal.element.classList.add('active');
+        modal.isOpen = true;
+
+        // 防止背景滚动
+        document.body.style.overflow = 'hidden';
+
+        // 焦点管理
+        const firstFocusable = modal.element.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (firstFocusable) {
+            firstFocusable.focus();
+        }
+
+        // ESC键关闭
+        this.escKeyHandler = (event) => {
+            if (event.key === 'Escape') {
+                this.closeModal(id);
+            }
+        };
+        document.addEventListener('keydown', this.escKeyHandler);
+    }
+
+    closeModal(id) {
+        const modal = this.modals.get(id);
+        if (!modal || !modal.isOpen) return;
+
+        modal.element.classList.remove('active');
+        modal.isOpen = false;
+
+        // 恢复背景滚动
+        document.body.style.overflow = '';
+
+        // 移除ESC键监听
+        if (this.escKeyHandler) {
+            document.removeEventListener('keydown', this.escKeyHandler);
+            this.escKeyHandler = null;
+        }
+    }
+}
+
+/**
+ * 懒加载组件
+ */
+class LazyLoader {
+    constructor() {
+        this.images = document.querySelectorAll('img[data-src]');
+        this.observer = null;
+        this.init();
+    }
+
+    init() {
+        if (!this.images.length) return;
+
+        if ('IntersectionObserver' in window) {
+            this.observer = new IntersectionObserver(this.handleIntersection.bind(this), {
+                rootMargin: '50px 0px',
+                threshold: 0.1
+            });
+
+            this.images.forEach(img => {
+                this.observer.observe(img);
+            });
+        } else {
+            // 降级方案
+            this.images.forEach(img => {
+                this.loadImage(img);
+            });
+        }
+    }
+
+    handleIntersection(entries) {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                this.loadImage(entry.target);
+                this.observer.unobserve(entry.target);
+            }
+        });
+    }
+
+    loadImage(img) {
+        const src = img.getAttribute('data-src');
+        if (!src) return;
+
+        img.src = src;
+        img.removeAttribute('data-src');
+        img.classList.add('loaded');
+    }
+
+    destroy() {
+        if (this.observer) {
+            this.observer.disconnect();
+        }
+    }
+}
+
+// 初始化应用
+document.addEventListener('DOMContentLoaded', () => {
+    window.app = new WebsiteApp();
+});
+
+// 导出供其他脚本使用
+window.WebsiteComponents = {
+    NavigationComponent,
+    ScrollWatcher,
+    FormHandler,
+    ModalManager,
+    LazyLoader
+};
+```
+
+这个HTML网站开发规则模板涵盖了：
+- HTML5语义化和可访问性
+- 现代CSS规范和组件样式
+- JavaScript模块化开发
+- 响应式设计最佳实践
+- 性能优化技巧
+
+它为HTML网站开发提供了完整的现代化指导，帮助开发者构建高质量、高性能的网站。

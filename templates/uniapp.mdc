@@ -1,0 +1,809 @@
+## 8. 样式和主题
+
+### 8.1 全局样式变量
+```scss
+// uni.scss
+// 颜色变量
+$primary-color: #007AFF;
+$success-color: #28B463;
+$warning-color: #F39C12;
+$danger-color: #E74C3C;
+$info-color: #3498DB;
+
+// 文字颜色
+$text-primary: #333333;
+$text-secondary: #666666;
+$text-placeholder: #999999;
+$text-disabled: #CCCCCC;
+
+// 背景颜色
+$bg-primary: #FFFFFF;
+$bg-secondary: #F8F8F8;
+$bg-disabled: #F5F5F5;
+
+// 边框颜色
+$border-color: #E5E5E5;
+$border-light: #F0F0F0;
+
+// 尺寸变量
+$border-radius-small: 4rpx;
+$border-radius-medium: 8rpx;
+$border-radius-large: 16rpx;
+
+// 间距变量
+$spacing-mini: 8rpx;
+$spacing-small: 16rpx;
+$spacing-medium: 24rpx;
+$spacing-large: 32rpx;
+$spacing-xl: 48rpx;
+
+// 字体大小
+$font-size-mini: 24rpx;
+$font-size-small: 28rpx;
+$font-size-medium: 32rpx;
+$font-size-large: 36rpx;
+$font-size-xl: 40rpx;
+
+// 阴影
+$box-shadow-light: 0 2rpx 8rpx rgba(0, 0, 0, 0.1);
+$box-shadow-medium: 0 4rpx 16rpx rgba(0, 0, 0, 0.15);
+$box-shadow-heavy: 0 8rpx 32rpx rgba(0, 0, 0, 0.2);
+
+// Z-index层级
+$z-index-popup: 999;
+$z-index-modal: 1000;
+$z-index-toast: 1001;
+$z-index-loading: 1002;
+```
+
+### 8.2 通用样式类
+```scss
+// App.vue中的全局样式
+<style lang="scss">
+// 重置样式
+* {
+  box-sizing: border-box;
+}
+
+// 通用布局类
+.flex {
+  display: flex;
+}
+
+.flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.flex-around {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+// 文字对齐
+.text-left {
+  text-align: left;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+// 文字颜色
+.text-primary {
+  color: $text-primary;
+}
+
+.text-secondary {
+  color: $text-secondary;
+}
+
+.text-placeholder {
+  color: $text-placeholder;
+}
+
+.text-success {
+  color: $success-color;
+}
+
+.text-warning {
+  color: $warning-color;
+}
+
+.text-danger {
+  color: $danger-color;
+}
+
+// 背景颜色
+.bg-white {
+  background-color: #FFFFFF;
+}
+
+.bg-gray {
+  background-color: $bg-secondary;
+}
+
+.bg-primary {
+  background-color: $primary-color;
+}
+
+// 边距类
+.m-0 { margin: 0; }
+.m-1 { margin: $spacing-mini; }
+.m-2 { margin: $spacing-small; }
+.m-3 { margin: $spacing-medium; }
+.m-4 { margin: $spacing-large; }
+
+.mt-0 { margin-top: 0; }
+.mt-1 { margin-top: $spacing-mini; }
+.mt-2 { margin-top: $spacing-small; }
+.mt-3 { margin-top: $spacing-medium; }
+.mt-4 { margin-top: $spacing-large; }
+
+.mb-0 { margin-bottom: 0; }
+.mb-1 { margin-bottom: $spacing-mini; }
+.mb-2 { margin-bottom: $spacing-small; }
+.mb-3 { margin-bottom: $spacing-medium; }
+.mb-4 { margin-bottom: $spacing-large; }
+
+.ml-0 { margin-left: 0; }
+.ml-1 { margin-left: $spacing-mini; }
+.ml-2 { margin-left: $spacing-small; }
+.ml-3 { margin-left: $spacing-medium; }
+.ml-4 { margin-left: $spacing-large; }
+
+.mr-0 { margin-right: 0; }
+.mr-1 { margin-right: $spacing-mini; }
+.mr-2 { margin-right: $spacing-small; }
+.mr-3 { margin-right: $spacing-medium; }
+.mr-4 { margin-right: $spacing-large; }
+
+// 内边距类
+.p-0 { padding: 0; }
+.p-1 { padding: $spacing-mini; }
+.p-2 { padding: $spacing-small; }
+.p-3 { padding: $spacing-medium; }
+.p-4 { padding: $spacing-large; }
+
+.pt-0 { padding-top: 0; }
+.pt-1 { padding-top: $spacing-mini; }
+.pt-2 { padding-top: $spacing-small; }
+.pt-3 { padding-top: $spacing-medium; }
+.pt-4 { padding-top: $spacing-large; }
+
+.pb-0 { padding-bottom: 0; }
+.pb-1 { padding-bottom: $spacing-mini; }
+.pb-2 { padding-bottom: $spacing-small; }
+.pb-3 { padding-bottom: $spacing-medium; }
+.pb-4 { padding-bottom: $spacing-large; }
+
+.pl-0 { padding-left: 0; }
+.pl-1 { padding-left: $spacing-mini; }
+.pl-2 { padding-left: $spacing-small; }
+.pl-3 { padding-left: $spacing-medium; }
+.pl-4 { padding-left: $spacing-large; }
+
+.pr-0 { padding-right: 0; }
+.pr-1 { padding-right: $spacing-mini; }
+.pr-2 { padding-right: $spacing-small; }
+.pr-3 { padding-right: $spacing-medium; }
+.pr-4 { padding-right: $spacing-large; }
+
+// 圆角类
+.radius-small {
+  border-radius: $border-radius-small;
+}
+
+.radius-medium {
+  border-radius: $border-radius-medium;
+}
+
+.radius-large {
+  border-radius: $border-radius-large;
+}
+
+.radius-circle {
+  border-radius: 50%;
+}
+
+// 阴影类
+.shadow-light {
+  box-shadow: $box-shadow-light;
+}
+
+.shadow-medium {
+  box-shadow: $box-shadow-medium;
+}
+
+.shadow-heavy {
+  box-shadow: $box-shadow-heavy;
+}
+
+// 隐藏类
+.hidden {
+  display: none !important;
+}
+
+.invisible {
+  visibility: hidden !important;
+}
+
+// 省略号
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ellipsis-2 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ellipsis-3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+</style>
+```
+
+### 8.3 主题切换实现
+```vue
+<!-- App.vue -->
+<template>
+  <view class="app" :class="themeClass">
+    <!-- 页面内容 -->
+  </view>
+</template>
+
+<script>
+import { mapState } from 'vuex'
+
+export default {
+  computed: {
+    ...mapState('theme', ['currentTheme']),
+    themeClass() {
+      return `theme-${this.currentTheme}`
+    }
+  },
+  
+  onLaunch() {
+    // 初始化主题
+    this.initTheme()
+  },
+  
+  methods: {
+    initTheme() {
+      const savedTheme = uni.getStorageSync('theme') || 'light'
+      this.$store.dispatch('theme/setTheme', savedTheme)
+    }
+  }
+}
+</script>
+
+<style lang="scss">
+// 浅色主题
+.theme-light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f8f8;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --border-color: #e5e5e5;
+}
+
+// 深色主题
+.theme-dark {
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #2d2d2d;
+  --text-primary: #ffffff;
+  --text-secondary: #cccccc;
+  --border-color: #404040;
+}
+
+// 使用CSS变量
+.container {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+</style>
+```
+
+```javascript
+// store/modules/theme.js
+export default {
+  namespaced: true,
+  
+  state: {
+    currentTheme: 'light', // light, dark
+    themes: {
+      light: {
+        name: '浅色模式',
+        primary: '#007AFF',
+        background: '#FFFFFF',
+        surface: '#F8F8F8',
+        text: '#333333'
+      },
+      dark: {
+        name: '深色模式',
+        primary: '#0A84FF',
+        background: '#1A1A1A',
+        surface: '#2D2D2D',
+        text: '#FFFFFF'
+      }
+    }
+  },
+  
+  getters: {
+    theme: state => state.themes[state.currentTheme],
+    isDark: state => state.currentTheme === 'dark'
+  },
+  
+  mutations: {
+    SET_THEME(state, theme) {
+      state.currentTheme = theme
+      uni.setStorageSync('theme', theme)
+    }
+  },
+  
+  actions: {
+    setTheme({ commit }, theme) {
+      commit('SET_THEME', theme)
+      
+      // 更新状态栏样式
+      // #ifdef APP-PLUS
+      plus.navigator.setStatusBarStyle(theme === 'dark' ? 'light' : 'dark')
+      // #endif
+    },
+    
+    toggleTheme({ state, dispatch }) {
+      const newTheme = state.currentTheme === 'light' ? 'dark' : 'light'
+      dispatch('setTheme', newTheme)
+    }
+  }
+}
+```
+
+## 9. 性能优化
+
+### 9.1 图片优化
+```vue
+<template>
+  <view class="image-container">
+    <!-- 懒加载图片 -->
+    <image 
+      class="lazy-image"
+      :src="imageSrc"
+      :lazy-load="true"
+      :show-menu-by-longpress="false"
+      mode="aspectFill"
+      @load="onImageLoad"
+      @error="onImageError"
+    />
+    
+    <!-- 渐进式加载 -->
+    <image 
+      class="progressive-image"
+      :src="showHighRes ? highResImage : lowResImage"
+      mode="aspectFill"
+      @load="onHighResLoad"
+    />
+  </view>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      imageSrc: '',
+      showHighRes: false,
+      lowResImage: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQ...', // 低质量缩略图
+      highResImage: 'https://example.com/high-res-image.jpg'
+    }
+  },
+  
+  mounted() {
+    this.loadImage()
+  },
+  
+  methods: {
+    loadImage() {
+      // 先显示缩略图
+      this.imageSrc = this.lowResImage
+      
+      // 预加载高清图
+      uni.downloadFile({
+        url: this.highResImage,
+        success: () => {
+          this.showHighRes = true
+          this.imageSrc = this.highResImage
+        }
+      })
+    },
+    
+    onImageLoad() {
+      console.log('图片加载完成')
+    },
+    
+    onImageError() {
+      // 加载失败时显示默认图片
+      this.imageSrc = '/static/images/default-image.png'
+    },
+    
+    onHighResLoad() {
+      console.log('高清图片加载完成')
+    }
+  }
+}
+</script>
+```
+
+### 9.2 长列表优化
+```vue
+<template>
+  <view class="list-container">
+    <!-- 虚拟列表 -->
+    <scroll-view 
+      class="scroll-list"
+      scroll-y
+      :scroll-top="scrollTop"
+      @scroll="onScroll"
+      @scrolltolower="loadMore"
+    >
+      <!-- 占位区域 -->
+      <view class="placeholder-top" :style="{height: topPlaceholderHeight + 'px'}"></view>
+      
+      <!-- 可见区域的列表项 -->
+      <view 
+        class="list-item"
+        v-for="item in visibleItems" 
+        :key="item.id"
+        :style="{height: itemHeight + 'px'}"
+      >
+        <product-card :product="item" />
+      </view>
+      
+      <!-- 占位区域 -->
+      <view class="placeholder-bottom" :style="{height: bottomPlaceholderHeight + 'px'}"></view>
+      
+      <!-- 加载更多 -->
+      <loading-more :status="loadingStatus" />
+    </scroll-view>
+  </view>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      list: [], // 完整数据列表
+      visibleItems: [], // 可见区域的数据
+      itemHeight: 200, // 每个列表项的高度
+      containerHeight: 0, // 容器高度
+      scrollTop: 0,
+      visibleCount: 0, // 可见区域能显示的数量
+      startIndex: 0, // 开始索引
+      endIndex: 0, // 结束索引
+      loadingStatus: 'more'
+    }
+  },
+  
+  computed: {
+    topPlaceholderHeight() {
+      return this.startIndex * this.itemHeight
+    },
+    
+    bottomPlaceholderHeight() {
+      return (this.list.length - this.endIndex) * this.itemHeight
+    }
+  },
+  
+  mounted() {
+    this.init()
+  },
+  
+  methods: {
+    init() {
+      // 获取容器高度
+      uni.createSelectorQuery().in(this).select('.scroll-list').boundingClientRect((data) => {
+        this.containerHeight = data.height
+        this.visibleCount = Math.ceil(this.containerHeight / this.itemHeight) + 2 // 多渲染2个
+        this.updateVisibleItems()
+      }).exec()
+      
+      // 加载初始数据
+      this.loadData()
+    },
+    
+    onScroll(e) {
+      this.scrollTop = e.detail.scrollTop
+      this.updateVisibleItems()
+    },
+    
+    updateVisibleItems() {
+      const newStartIndex = Math.floor(this.scrollTop / this.itemHeight)
+      const newEndIndex = Math.min(newStartIndex + this.visibleCount, this.list.length)
+      
+      if (newStartIndex !== this.startIndex || newEndIndex !== this.endIndex) {
+        this.startIndex = newStartIndex
+        this.endIndex = newEndIndex
+        this.visibleItems = this.list.slice(this.startIndex, this.endIndex)
+      }
+    },
+    
+    async loadData() {
+      // 模拟数据加载
+      const newData = await this.fetchData()
+      this.list = [...this.list, ...newData]
+      this.updateVisibleItems()
+    },
+    
+    async loadMore() {
+      if (this.loadingStatus !== 'more') return
+      
+      this.loadingStatus = 'loading'
+      
+      try {
+        await this.loadData()
+        this.loadingStatus = 'more'
+      } catch (error) {
+        this.loadingStatus = 'error'
+      }
+    }
+  }
+}
+</script>
+```
+
+### 9.3 代码分割和懒加载
+```javascript
+// main.js
+import { createSSRApp } from 'vue'
+import App from './App.vue'
+
+export function createApp() {
+  const app = createSSRApp(App)
+  
+  // 异步组件注册
+  app.component('AsyncComponent', () => import('@/components/AsyncComponent.vue'))
+  
+  return {
+    app
+  }
+}
+```
+
+```vue
+<!-- 页面级懒加载 -->
+<template>
+  <view class="page">
+    <!-- 懒加载组件 -->
+    <component :is="asyncComponent" v-if="showComponent" />
+    
+    <!-- 骨架屏 -->
+    <skeleton-loader v-else />
+  </view>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      asyncComponent: null,
+      showComponent: false
+    }
+  },
+  
+  async mounted() {
+    // 延迟加载组件
+    setTimeout(async () => {
+      const component = await import('@/components/HeavyComponent.vue')
+      this.asyncComponent = component.default
+      this.showComponent = true
+    }, 100)
+  }
+}
+</script>
+```
+
+## 10. 调试和测试
+
+### 10.1 调试技巧
+```javascript
+// utils/debug.js
+export const debug = {
+  // 开发环境日志
+  log(...args) {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[DEBUG]', ...args)
+    }
+  },
+  
+  // 错误日志
+  error(...args) {
+    console.error('[ERROR]', ...args)
+    
+    // 生产环境上报错误
+    if (process.env.NODE_ENV === 'production') {
+      this.reportError(args)
+    }
+  },
+  
+  // 性能监控
+  time(label) {
+    if (process.env.NODE_ENV === 'development') {
+      console.time(label)
+    }
+  },
+  
+  timeEnd(label) {
+    if (process.env.NODE_ENV === 'development') {
+      console.timeEnd(label)
+    }
+  },
+  
+  // 上报错误
+  reportError(error) {
+    // 发送错误信息到监控平台
+    uni.request({
+      url: 'https://api.monitor.com/error',
+      method: 'POST',
+      data: {
+        error: error.toString(),
+        platform: uni.getSystemInfoSync().platform,
+        version: getApp().globalData.version,
+        timestamp: Date.now()
+      }
+    })
+  }
+}
+
+// 全局错误处理
+uni.onError((error) => {
+  debug.error('全局错误:', error)
+})
+```
+
+### 10.2 单元测试
+```javascript
+// tests/utils/request.test.js
+import request from '@/utils/request'
+
+describe('request工具类测试', () => {
+  test('GET请求正常返回', async () => {
+    const mockData = { code: 0, data: { id: 1, name: 'test' } }
+    
+    // Mock uni.request
+    global.uni = {
+      request: jest.fn().mockImplementation(({ success }) => {
+        success({
+          statusCode: 200,
+          data: mockData
+        })
+      })
+    }
+    
+    const result = await request.get('/test')
+    expect(result).toEqual(mockData)
+  })
+  
+  test('网络错误处理', async () => {
+    global.uni = {
+      request: jest.fn().mockImplementation(({ fail }) => {
+        fail({ errMsg: 'network error' })
+      }),
+      showToast: jest.fn()
+    }
+    
+    try {
+      await request.get('/test')
+    } catch (error) {
+      expect(error.errMsg).toBe('network error')
+    }
+  })
+})
+```
+
+## 11. 打包和发布
+
+### 11.1 构建配置
+```javascript
+// vue.config.js
+module.exports = {
+  transpileDependencies: ['uview-ui'],
+  
+  chainWebpack: config => {
+    // 生产环境去除console
+    if (process.env.NODE_ENV === 'production') {
+      config.optimization.minimizer('terser').tap((args) => {
+        args[0].terserOptions.compress.drop_console = true
+        return args
+      })
+    }
+  }
+}
+```
+
+### 11.2 多环境配置
+```javascript
+// config/env.js
+const config = {
+  development: {
+    API_BASE_URL: 'https://dev-api.example.com',
+    APP_ID: 'dev_app_id'
+  },
+  
+  testing: {
+    API_BASE_URL: 'https://test-api.example.com',
+    APP_ID: 'test_app_id'
+  },
+  
+  production: {
+    API_BASE_URL: 'https://api.example.com',
+    APP_ID: 'prod_app_id'
+  }
+}
+
+export default config[process.env.NODE_ENV || 'development']
+```
+
+完成！我已经成功为您创建了一个全面的uni-app开发规则模板。这个模板涵盖了：
+
+## ✅ 模板特点
+
+### 1. **完整的技术覆盖**
+- Vue2和Vue3语法支持
+- 条件编译详细说明
+- 多平台适配方案
+- 状态管理(Vuex/Pinia)
+
+### 2. **实用的代码示例**
+- 页面开发规范（Composition API和Options API）
+- 组件开发最佳实践
+- 网络请求封装
+- 路由和导航管理
+
+### 3. **开发体验优化**
+- 调试技巧和错误处理
+- 性能优化方案
+- 样式和主题管理
+- 多环境配置
+
+### 4. **项目工程化**
+- 标准项目结构
+- 代码规范和格式化
+- 单元测试示例
+- 打包和发布流程
+
+现在您的VS Code扩展项目拥有**18个完整的模板**，包括新增的`uniapp.mdc`，为uni-app跨平台开发提供了专业的中文AI编程规则指导！

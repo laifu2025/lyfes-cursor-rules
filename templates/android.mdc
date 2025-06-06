@@ -1,0 +1,1209 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 来福哥的Android开发规则
+
+**适用范围**: 基于Android平台的原生移动应用开发  
+
+## 1. 框架概述
+
+### 1.1 Android简介
+Android是Google开发的移动操作系统，具有以下核心特性：
+- 开源系统，全球市场份额最大
+- Java/Kotlin双语言支持
+- 丰富的系统组件和API
+- 强大的第三方生态系统
+- 支持多种设备形态
+
+### 1.2 技术栈
+- **开发语言**: Kotlin (主推) / Java
+- **UI框架**: Android View System / Jetpack Compose
+- **架构组件**: MVVM / MVP / MVI
+- **依赖注入**: Hilt / Dagger
+- **网络请求**: Retrofit / OkHttp
+- **图片加载**: Glide / Picasso
+- **数据库**: Room / SQLite
+- **异步处理**: Coroutines / RxJava
+
+## 2. 项目结构规范
+```
+app/
+├── src/main/
+│   ├── java/com/example/app/        # 源代码目录
+│   │   ├── data/                    # 数据层
+│   │   │   ├── api/                # API接口
+│   │   │   ├── database/           # 数据库相关
+│   │   │   ├── model/              # 数据模型
+│   │   │   └── repository/         # 数据仓库
+│   │   ├── di/                     # 依赖注入
+│   │   ├── domain/                 # 业务逻辑层
+│   │   │   ├── model/              # 业务模型
+│   │   │   ├── repository/         # 仓库接口
+│   │   │   └── usecase/            # 用例
+│   │   ├── presentation/           # 表现层
+│   │   │   ├── ui/                 # Activity/Fragment
+│   │   │   ├── viewmodel/          # ViewModel
+│   │   │   └── adapter/            # RecyclerView适配器
+│   │   └── utils/                  # 工具类
+│   ├── res/                        # 资源文件
+│   │   ├── layout/                 # 布局文件
+│   │   ├── values/                 # 值资源
+│   │   ├── drawable/               # 图片资源
+│   │   └── menu/                   # 菜单资源
+│   └── AndroidManifest.xml         # 应用清单
+└── build.gradle                    # 构建配置
+```
+
+## 3. 开发规范
+
+### 3.1 代码风格规范
+### Kotlin命名规则
+```kotlin
+// ✅ 类名：使用PascalCase
+class UserProfileActivity : AppCompatActivity() {
+    // 类内容
+}
+
+// ✅ 函数名、变量名：使用camelCase
+fun getUserData(): User? {
+    val userName = "android_dev"
+    return User(userName)
+}
+
+// ✅ 常量：使用UPPER_SNAKE_CASE
+companion object {
+    const val REQUEST_CODE_PERMISSION = 100
+    const val API_BASE_URL = "https://api.example.com"
+}
+
+// ✅ 私有成员：使用下划线前缀（可选）
+private val _userData = MutableLiveData<User>()
+val userData: LiveData<User> = _userData
+
+// ✅ 资源文件命名：使用snake_case
+// activity_user_profile.xml
+// fragment_user_list.xml
+// ic_user_avatar.xml
+```
+
+### 代码格式化
+```kotlin
+// ✅ 使用ktlint格式化代码
+class UserRepository @Inject constructor(
+    private val apiService: ApiService,
+    private val userDao: UserDao
+) {
+    
+    suspend fun getUser(userId: String): Result<User> {
+        return try {
+            val response = apiService.getUser(userId)
+            if (response.isSuccessful) {
+                response.body()?.let { user ->
+                    userDao.insertUser(user)
+                    Result.success(user)
+                } ?: Result.failure(Exception("用户数据为空"))
+            } else {
+                Result.failure(Exception("网络请求失败: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+}
+```
+
+### 3.2 Activity/Fragment开发规范
+### Activity基础结构
+```kotlin
+// ✅ Activity标准结构
+class UserProfileActivity : AppCompatActivity() {
+    
+    private lateinit var binding: ActivityUserProfileBinding
+    private val viewModel: UserProfileViewModel by viewModels()
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityUserProfileBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        
+        setupUI()
+        setupObservers()
+        setupClickListeners()
+    }
+    
+    private fun setupUI() {
+        supportActionBar?.apply {
+            title = "用户资料"
+            setDisplayHomeAsUpEnabled(true)
+        }
+    }
+    
+    private fun setupObservers() {
+        viewModel.userData.observe(this) { user ->
+            updateUI(user)
+        }
+        
+        viewModel.loading.observe(this) { isLoading ->
+            binding.progressBar.isVisible = isLoading
+        }
+        
+        viewModel.error.observe(this) { errorMessage ->
+            if (errorMessage.isNotEmpty()) {
+                showError(errorMessage)
+            }
+        }
+    }
+    
+    private fun setupClickListeners() {
+        binding.btnSave.setOnClickListener {
+            saveUserProfile()
+        }
+    }
+    
+    private fun updateUI(user: User) {
+        binding.apply {
+            tvUserName.text = user.name
+            tvUserEmail.text = user.email
+            Glide.with(this@UserProfileActivity)
+                .load(user.avatar)
+                .placeholder(R.drawable.ic_user_placeholder)
+                .into(ivUserAvatar)
+        }
+    }
+    
+    private fun saveUserProfile() {
+        val updatedUser = User(
+            name = binding.etUserName.text.toString(),
+            email = binding.etUserEmail.text.toString()
+        )
+        viewModel.updateUser(updatedUser)
+    }
+    
+    private fun showError(message: String) {
+        Snackbar.make(binding.root, message, Snackbar.LENGTH_LONG).show()
+    }
+}
+```
+
+### Fragment基础结构
+```kotlin
+// ✅ Fragment标准结构
+class UserListFragment : Fragment() {
+    
+    private var _binding: FragmentUserListBinding? = null
+    private val binding get() = _binding!!
+    
+    private val viewModel: UserListViewModel by viewModels()
+    private lateinit var userAdapter: UserAdapter
+    
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View {
+        _binding = FragmentUserListBinding.inflate(inflater, container, false)
+        return binding.root
+    }
+    
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        
+        setupRecyclerView()
+        setupObservers()
+        setupSwipeRefresh()
+        
+        viewModel.loadUsers()
+    }
+    
+    private fun setupRecyclerView() {
+        userAdapter = UserAdapter { user ->
+            findNavController().navigate(
+                UserListFragmentDirections.actionToUserDetail(user.id)
+            )
+        }
+        
+        binding.recyclerView.apply {
+            adapter = userAdapter
+            layoutManager = LinearLayoutManager(requireContext())
+            addItemDecoration(
+                DividerItemDecoration(requireContext(), LinearLayoutManager.VERTICAL)
+            )
+        }
+    }
+    
+    private fun setupObservers() {
+        viewModel.users.observe(viewLifecycleOwner) { users ->
+            userAdapter.submitList(users)
+            binding.emptyView.isVisible = users.isEmpty()
+        }
+        
+        viewModel.loading.observe(viewLifecycleOwner) { isLoading ->
+            binding.swipeRefresh.isRefreshing = isLoading
+        }
+    }
+    
+    private fun setupSwipeRefresh() {
+        binding.swipeRefresh.setOnRefreshListener {
+            viewModel.refreshUsers()
+        }
+    }
+    
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+    }
+}
+```
+
+## 4. MVVM架构规范
+### ViewModel实现
+```kotlin
+// ✅ ViewModel标准实现
+@HiltViewModel
+class UserProfileViewModel @Inject constructor(
+    private val userRepository: UserRepository
+) : ViewModel() {
+    
+    private val _userData = MutableLiveData<User>()
+    val userData: LiveData<User> = _userData
+    
+    private val _loading = MutableLiveData<Boolean>()
+    val loading: LiveData<Boolean> = _loading
+    
+    private val _error = MutableLiveData<String>()
+    val error: LiveData<String> = _error
+    
+    fun loadUser(userId: String) {
+        viewModelScope.launch {
+            _loading.value = true
+            
+            userRepository.getUser(userId)
+                .onSuccess { user ->
+                    _userData.value = user
+                    _error.value = ""
+                }
+                .onFailure { exception ->
+                    _error.value = "加载用户信息失败: ${exception.message}"
+                }
+            
+            _loading.value = false
+        }
+    }
+    
+    fun updateUser(user: User) {
+        viewModelScope.launch {
+            _loading.value = true
+            
+            userRepository.updateUser(user)
+                .onSuccess {
+                    _userData.value = user
+                    _error.value = ""
+                }
+                .onFailure { exception ->
+                    _error.value = "更新用户信息失败: ${exception.message}"
+                }
+            
+            _loading.value = false
+        }
+    }
+}
+```
+
+### Repository模式
+```kotlin
+// ✅ Repository接口定义
+interface UserRepository {
+    suspend fun getUser(userId: String): Result<User>
+    suspend fun updateUser(user: User): Result<Unit>
+    suspend fun getUserList(): Result<List<User>>
+}
+
+// ✅ Repository实现
+@Singleton
+class UserRepositoryImpl @Inject constructor(
+    private val apiService: ApiService,
+    private val userDao: UserDao,
+    private val networkUtils: NetworkUtils
+) : UserRepository {
+    
+    override suspend fun getUser(userId: String): Result<User> {
+        return if (networkUtils.isNetworkAvailable()) {
+            // 网络可用，从API获取
+            try {
+                val response = apiService.getUser(userId)
+                if (response.isSuccessful) {
+                    response.body()?.let { user ->
+                        // 缓存到本地数据库
+                        userDao.insertUser(user)
+                        Result.success(user)
+                    } ?: Result.failure(Exception("用户数据为空"))
+                } else {
+                    Result.failure(Exception("API请求失败: ${response.code()}"))
+                }
+            } catch (e: Exception) {
+                // 网络请求失败，尝试从缓存获取
+                getCachedUser(userId)
+            }
+        } else {
+            // 网络不可用，从缓存获取
+            getCachedUser(userId)
+        }
+    }
+    
+    private suspend fun getCachedUser(userId: String): Result<User> {
+        return try {
+            val cachedUser = userDao.getUserById(userId)
+            if (cachedUser != null) {
+                Result.success(cachedUser)
+            } else {
+                Result.failure(Exception("无网络连接且无缓存数据"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun updateUser(user: User): Result<Unit> {
+        return try {
+            val response = apiService.updateUser(user.id, user)
+            if (response.isSuccessful) {
+                userDao.updateUser(user)
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("更新失败: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+}
+```
+
+## 5. 数据库操作规范
+### Room数据库
+```kotlin
+// ✅ Entity定义
+@Entity(tableName = "users")
+data class User(
+    @PrimaryKey
+    val id: String,
+    
+    @ColumnInfo(name = "user_name")
+    val name: String,
+    
+    @ColumnInfo(name = "user_email")
+    val email: String,
+    
+    @ColumnInfo(name = "avatar_url")
+    val avatar: String? = null,
+    
+    @ColumnInfo(name = "created_at")
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+// ✅ DAO定义
+@Dao
+interface UserDao {
+    
+    @Query("SELECT * FROM users WHERE id = :userId")
+    suspend fun getUserById(userId: String): User?
+    
+    @Query("SELECT * FROM users ORDER BY created_at DESC")
+    suspend fun getAllUsers(): List<User>
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertUser(user: User)
+    
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertUsers(users: List<User>)
+    
+    @Update
+    suspend fun updateUser(user: User)
+    
+    @Delete
+    suspend fun deleteUser(user: User)
+    
+    @Query("DELETE FROM users")
+    suspend fun clearAllUsers()
+}
+
+// ✅ Database定义
+@Database(
+    entities = [User::class],
+    version = 1,
+    exportSchema = false
+)
+@TypeConverters(Converters::class)
+abstract class AppDatabase : RoomDatabase() {
+    
+    abstract fun userDao(): UserDao
+    
+    companion object {
+        const val DATABASE_NAME = "app_database"
+    }
+}
+```
+
+## 6. 网络请求规范
+### Retrofit配置
+```kotlin
+// ✅ API接口定义
+interface ApiService {
+    
+    @GET("users/{id}")
+    suspend fun getUser(@Path("id") userId: String): Response<User>
+    
+    @GET("users")
+    suspend fun getUserList(
+        @Query("page") page: Int,
+        @Query("limit") limit: Int
+    ): Response<List<User>>
+    
+    @POST("users")
+    suspend fun createUser(@Body user: User): Response<User>
+    
+    @PUT("users/{id}")
+    suspend fun updateUser(
+        @Path("id") userId: String,
+        @Body user: User
+    ): Response<User>
+    
+    @DELETE("users/{id}")
+    suspend fun deleteUser(@Path("id") userId: String): Response<Unit>
+}
+
+// ✅ 网络模块配置
+@Module
+@InstallIn(SingletonComponent::class)
+object NetworkModule {
+    
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = if (BuildConfig.DEBUG) {
+                    HttpLoggingInterceptor.Level.BODY
+                } else {
+                    HttpLoggingInterceptor.Level.NONE
+                }
+            })
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .addHeader("Content-Type", "application/json")
+                    .addHeader("Accept", "application/json")
+                    .build()
+                chain.proceed(request)
+            }
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(BuildConfig.API_BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+    
+    @Provides
+    @Singleton
+    fun provideApiService(retrofit: Retrofit): ApiService {
+        return retrofit.create(ApiService::class.java)
+    }
+}
+```
+
+## 7. RecyclerView适配器规范
+### ListAdapter实现
+```kotlin
+// ✅ 推荐使用ListAdapter
+class UserAdapter(
+    private val onItemClick: (User) -> Unit
+) : ListAdapter<User, UserAdapter.UserViewHolder>(UserDiffCallback()) {
+    
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): UserViewHolder {
+        val binding = ItemUserBinding.inflate(
+            LayoutInflater.from(parent.context),
+            parent,
+            false
+        )
+        return UserViewHolder(binding)
+    }
+    
+    override fun onBindViewHolder(holder: UserViewHolder, position: Int) {
+        holder.bind(getItem(position))
+    }
+    
+    inner class UserViewHolder(
+        private val binding: ItemUserBinding
+    ) : RecyclerView.ViewHolder(binding.root) {
+        
+        fun bind(user: User) {
+            binding.apply {
+                tvUserName.text = user.name
+                tvUserEmail.text = user.email
+                
+                Glide.with(itemView.context)
+                    .load(user.avatar)
+                    .placeholder(R.drawable.ic_user_placeholder)
+                    .error(R.drawable.ic_user_placeholder)
+                    .circleCrop()
+                    .into(ivUserAvatar)
+                
+                root.setOnClickListener {
+                    onItemClick(user)
+                }
+            }
+        }
+    }
+    
+    class UserDiffCallback : DiffUtil.ItemCallback<User>() {
+        override fun areItemsTheSame(oldItem: User, newItem: User): Boolean {
+            return oldItem.id == newItem.id
+        }
+        
+        override fun areContentsTheSame(oldItem: User, newItem: User): Boolean {
+            return oldItem == newItem
+        }
+    }
+}
+```
+
+## 8. 权限处理规范
+### 运行时权限
+```kotlin
+// ✅ 权限处理工具类
+class PermissionHelper(private val activity: Activity) {
+    
+    companion object {
+        const val CAMERA_PERMISSION_REQUEST_CODE = 1001
+        const val STORAGE_PERMISSION_REQUEST_CODE = 1002
+    }
+    
+    fun checkCameraPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            activity,
+            Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+    
+    fun requestCameraPermission() {
+        if (ActivityCompat.shouldShowRequestPermissionRationale(
+                activity,
+                Manifest.permission.CAMERA
+            )
+        ) {
+            // 显示权限说明对话框
+            showPermissionRationaleDialog(
+                "相机权限",
+                "应用需要相机权限来拍摄照片"
+            ) {
+                ActivityCompat.requestPermissions(
+                    activity,
+                    arrayOf(Manifest.permission.CAMERA),
+                    CAMERA_PERMISSION_REQUEST_CODE
+                )
+            }
+        } else {
+            ActivityCompat.requestPermissions(
+                activity,
+                arrayOf(Manifest.permission.CAMERA),
+                CAMERA_PERMISSION_REQUEST_CODE
+            )
+        }
+    }
+    
+    private fun showPermissionRationaleDialog(
+        title: String,
+        message: String,
+        onConfirm: () -> Unit
+    ) {
+        AlertDialog.Builder(activity)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton("确定") { _, _ -> onConfirm() }
+            .setNegativeButton("取消") { dialog, _ -> dialog.dismiss() }
+            .show()
+    }
+}
+
+// ✅ Activity中使用权限
+class CameraActivity : AppCompatActivity() {
+    
+    private lateinit var permissionHelper: PermissionHelper
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        permissionHelper = PermissionHelper(this)
+        
+        binding.btnCamera.setOnClickListener {
+            if (permissionHelper.checkCameraPermission()) {
+                openCamera()
+            } else {
+                permissionHelper.requestCameraPermission()
+            }
+        }
+    }
+    
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        
+        when (requestCode) {
+            PermissionHelper.CAMERA_PERMISSION_REQUEST_CODE -> {
+                if (grantResults.isNotEmpty() && 
+                    grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    openCamera()
+                } else {
+                    showToast("相机权限被拒绝")
+                }
+            }
+        }
+    }
+    
+    private fun openCamera() {
+        // 打开相机逻辑
+    }
+}
+```
+
+## 9. 本地存储规范
+### SharedPreferences封装
+```kotlin
+// ✅ SharedPreferences工具类
+@Singleton
+class PreferenceManager @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
+    
+    private val sharedPreferences = context.getSharedPreferences(
+        "app_preferences",
+        Context.MODE_PRIVATE
+    )
+    
+    companion object {
+        private const val KEY_USER_ID = "user_id"
+        private const val KEY_USER_TOKEN = "user_token"
+        private const val KEY_IS_FIRST_LAUNCH = "is_first_launch"
+        private const val KEY_THEME_MODE = "theme_mode"
+    }
+    
+    var userId: String?
+        get() = sharedPreferences.getString(KEY_USER_ID, null)
+        set(value) = sharedPreferences.edit().putString(KEY_USER_ID, value).apply()
+    
+    var userToken: String?
+        get() = sharedPreferences.getString(KEY_USER_TOKEN, null)
+        set(value) = sharedPreferences.edit().putString(KEY_USER_TOKEN, value).apply()
+    
+    var isFirstLaunch: Boolean
+        get() = sharedPreferences.getBoolean(KEY_IS_FIRST_LAUNCH, true)
+        set(value) = sharedPreferences.edit().putBoolean(KEY_IS_FIRST_LAUNCH, value).apply()
+    
+    var themeMode: String
+        get() = sharedPreferences.getString(KEY_THEME_MODE, "system") ?: "system"
+        set(value) = sharedPreferences.edit().putString(KEY_THEME_MODE, value).apply()
+    
+    fun clearAll() {
+        sharedPreferences.edit().clear().apply()
+    }
+    
+    fun clearUserData() {
+        sharedPreferences.edit()
+            .remove(KEY_USER_ID)
+            .remove(KEY_USER_TOKEN)
+            .apply()
+    }
+}
+```
+
+## 10. 导航组件规范
+### Navigation Component使用
+```kotlin
+// ✅ Navigation使用
+class MainActivity : AppCompatActivity() {
+    
+    private lateinit var binding: ActivityMainBinding
+    private lateinit var navController: NavController
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        
+        setupNavigation()
+    }
+    
+    private fun setupNavigation() {
+        val navHostFragment = supportFragmentManager
+            .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
+        navController = navHostFragment.navController
+        
+        // 设置底部导航
+        binding.bottomNavigation.setupWithNavController(navController)
+        
+        // 设置ActionBar
+        setupActionBarWithNavController(navController)
+        
+        // 监听导航事件
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            when (destination.id) {
+                R.id.homeFragment -> {
+                    binding.bottomNavigation.visibility = View.VISIBLE
+                }
+                R.id.loginFragment -> {
+                    binding.bottomNavigation.visibility = View.GONE
+                }
+            }
+        }
+    }
+    
+    override fun onSupportNavigateUp(): Boolean {
+        return navController.navigateUp() || super.onSupportNavigateUp()
+    }
+}
+
+// ✅ Fragment间导航
+class UserListFragment : Fragment() {
+    
+    private fun navigateToUserDetail(userId: String) {
+        findNavController().navigate(
+            UserListFragmentDirections.actionUserListToUserDetail(userId)
+        )
+    }
+    
+    private fun navigateToAddUser() {
+        findNavController().navigate(R.id.action_userList_to_addUser)
+    }
+}
+```
+
+## 11. 主题和样式规范
+### Material Design主题
+```xml
+<!-- ✅ colors.xml -->
+<resources>
+    <!-- 主色调 -->
+    <color name="colorPrimary">#2196F3</color>
+    <color name="colorPrimaryVariant">#1976D2</color>
+    <color name="colorOnPrimary">#FFFFFF</color>
+    
+    <!-- 辅助色 -->
+    <color name="colorSecondary">#03DAC6</color>
+    <color name="colorSecondaryVariant">#018786</color>
+    <color name="colorOnSecondary">#000000</color>
+    
+    <!-- 背景色 -->
+    <color name="colorBackground">#FFFFFF</color>
+    <color name="colorSurface">#FFFFFF</color>
+    <color name="colorOnBackground">#000000</color>
+    <color name="colorOnSurface">#000000</color>
+    
+    <!-- 错误色 -->
+    <color name="colorError">#F44336</color>
+    <color name="colorOnError">#FFFFFF</color>
+</resources>
+
+<!-- ✅ themes.xml -->
+<resources>
+    <style name="Theme.MyApp" parent="Theme.Material3.DayNight">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryVariant">@color/colorPrimaryVariant</item>
+        <item name="colorOnPrimary">@color/colorOnPrimary</item>
+        
+        <item name="colorSecondary">@color/colorSecondary</item>
+        <item name="colorSecondaryVariant">@color/colorSecondaryVariant</item>
+        <item name="colorOnSecondary">@color/colorOnSecondary</item>
+        
+        <item name="android:statusBarColor">@color/colorPrimaryVariant</item>
+        <item name="android:navigationBarColor">@color/colorPrimary</item>
+    </style>
+    
+    <!-- 自定义样式 -->
+    <style name="MyButton" parent="Widget.Material3.Button">
+        <item name="android:layout_height">48dp</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="cornerRadius">8dp</item>
+    </style>
+    
+    <style name="MyEditText" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="android:layout_marginBottom">16dp</item>
+        <item name="boxCornerRadiusBottomEnd">8dp</item>
+        <item name="boxCornerRadiusBottomStart">8dp</item>
+        <item name="boxCornerRadiusTopEnd">8dp</item>
+        <item name="boxCornerRadiusTopStart">8dp</item>
+    </style>
+</resources>
+```
+
+## 12. 测试规范
+### 单元测试
+```kotlin
+// ✅ Repository测试
+@ExperimentalCoroutinesTest
+class UserRepositoryTest {
+    
+    @Mock
+    private lateinit var apiService: ApiService
+    
+    @Mock
+    private lateinit var userDao: UserDao
+    
+    @Mock
+    private lateinit var networkUtils: NetworkUtils
+    
+    private lateinit var repository: UserRepositoryImpl
+    
+    @Before
+    fun setup() {
+        MockitoAnnotations.openMocks(this)
+        repository = UserRepositoryImpl(apiService, userDao, networkUtils)
+    }
+    
+    @Test
+    fun `获取用户成功时应该返回用户数据`() = runTest {
+        // Arrange
+        val userId = "123"
+        val expectedUser = User(id = userId, name = "测试用户", email = "test@example.com")
+        val response = Response.success(expectedUser)
+        
+        `when`(networkUtils.isNetworkAvailable()).thenReturn(true)
+        `when`(apiService.getUser(userId)).thenReturn(response)
+        
+        // Act
+        val result = repository.getUser(userId)
+        
+        // Assert
+        assertTrue(result.isSuccess)
+        assertEquals(expectedUser, result.getOrNull())
+        verify(userDao).insertUser(expectedUser)
+    }
+    
+    @Test
+    fun `网络不可用时应该从缓存获取用户数据`() = runTest {
+        // Arrange
+        val userId = "123"
+        val cachedUser = User(id = userId, name = "缓存用户", email = "cached@example.com")
+        
+        `when`(networkUtils.isNetworkAvailable()).thenReturn(false)
+        `when`(userDao.getUserById(userId)).thenReturn(cachedUser)
+        
+        // Act
+        val result = repository.getUser(userId)
+        
+        // Assert
+        assertTrue(result.isSuccess)
+        assertEquals(cachedUser, result.getOrNull())
+        verify(apiService, never()).getUser(any())
+    }
+}
+```
+
+### UI测试
+```kotlin
+// ✅ Activity测试
+@RunWith(AndroidJUnit4::class)
+class UserProfileActivityTest {
+    
+    @get:Rule
+    val activityRule = ActivityScenarioRule(UserProfileActivity::class.java)
+    
+    @Test
+    fun 应该显示用户名称() {
+        // 启动Activity并验证UI
+        onView(withId(R.id.tv_user_name))
+            .check(matches(isDisplayed()))
+        
+        onView(withId(R.id.tv_user_email))
+            .check(matches(isDisplayed()))
+    }
+    
+    @Test
+    fun 点击保存按钮应该保存用户信息() {
+        // 输入用户信息
+        onView(withId(R.id.et_user_name))
+            .perform(typeText("新用户名"))
+        
+        onView(withId(R.id.et_user_email))
+            .perform(typeText("newemail@example.com"))
+        
+        // 点击保存按钮
+        onView(withId(R.id.btn_save))
+            .perform(click())
+        
+        // 验证保存成功提示
+        onView(withText("保存成功"))
+            .check(matches(isDisplayed()))
+    }
+}
+```
+
+## 13. 性能优化指南
+### 内存优化
+```kotlin
+// ✅ 避免内存泄漏
+class UserAdapter : RecyclerView.Adapter<UserAdapter.ViewHolder>() {
+    
+    // 使用WeakReference避免Activity泄漏
+    private var onItemClickListener: WeakReference<(User) -> Unit>? = null
+    
+    fun setOnItemClickListener(listener: (User) -> Unit) {
+        onItemClickListener = WeakReference(listener)
+    }
+    
+    inner class ViewHolder(binding: ItemUserBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bind(user: User) {
+            // 绑定数据
+            itemView.setOnClickListener {
+                onItemClickListener?.get()?.invoke(user)
+            }
+        }
+    }
+}
+
+// ✅ 正确处理Bitmap
+class ImageUtils {
+    fun decodeSampledBitmapFromResource(
+        resources: Resources,
+        resId: Int,
+        reqWidth: Int,
+        reqHeight: Int
+    ): Bitmap {
+        return BitmapFactory.Options().run {
+            inJustDecodeBounds = true
+            BitmapFactory.decodeResource(resources, resId, this)
+            inSampleSize = calculateInSampleSize(this, reqWidth, reqHeight)
+            inJustDecodeBounds = false
+            BitmapFactory.decodeResource(resources, resId, this)
+        }
+    }
+    
+    private fun calculateInSampleSize(
+        options: BitmapFactory.Options,
+        reqWidth: Int,
+        reqHeight: Int
+    ): Int {
+        val (height: Int, width: Int) = options.run { outHeight to outWidth }
+        var inSampleSize = 1
+        
+        if (height > reqHeight || width > reqWidth) {
+            val halfHeight: Int = height / 2
+            val halfWidth: Int = width / 2
+            
+            while (halfHeight / inSampleSize >= reqHeight && 
+                   halfWidth / inSampleSize >= reqWidth) {
+                inSampleSize *= 2
+            }
+        }
+        return inSampleSize
+    }
+}
+```
+
+## 14. 安全实践
+### 网络安全
+```kotlin
+// ✅ 证书锁定
+class SecurityConfig {
+    
+    fun createSecureOkHttpClient(): OkHttpClient {
+        val certificatePinner = CertificatePinner.Builder()
+            .add("api.example.com", "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
+            .build()
+        
+        return OkHttpClient.Builder()
+            .certificatePinner(certificatePinner)
+            .addNetworkInterceptor(HttpLoggingInterceptor().apply {
+                level = if (BuildConfig.DEBUG) {
+                    HttpLoggingInterceptor.Level.BODY
+                } else {
+                    HttpLoggingInterceptor.Level.NONE
+                }
+            })
+            .build()
+    }
+}
+
+// ✅ 数据加密
+class EncryptionHelper {
+    
+    private val alias = "MyKeyAlias"
+    
+    fun encrypt(data: String): String {
+        val keyGenerator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
+        val keyGenParameterSpec = KeyGenParameterSpec.Builder(
+            alias,
+            KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT
+        )
+            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+            .build()
+        
+        keyGenerator.init(keyGenParameterSpec)
+        val secretKey = keyGenerator.generateKey()
+        
+        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+        
+        val iv = cipher.iv
+        val encryptedData = cipher.doFinal(data.toByteArray())
+        
+        return Base64.encodeToString(iv + encryptedData, Base64.DEFAULT)
+    }
+}
+```
+
+## 15. 工具类和扩展函数
+### 常用扩展函数
+```kotlin
+// ✅ View扩展函数
+fun View.visible() {
+    visibility = View.VISIBLE
+}
+
+fun View.invisible() {
+    visibility = View.INVISIBLE
+}
+
+fun View.gone() {
+    visibility = View.GONE
+}
+
+fun View.isVisible(): Boolean = visibility == View.VISIBLE
+
+// ✅ Context扩展函数
+fun Context.showToast(message: String, duration: Int = Toast.LENGTH_SHORT) {
+    Toast.makeText(this, message, duration).show()
+}
+
+fun Context.hideKeyboard(view: View) {
+    val inputMethodManager = getSystemService(Activity.INPUT_METHOD_SERVICE) as InputMethodManager
+    inputMethodManager.hideSoftInputFromWindow(view.windowToken, 0)
+}
+
+// ✅ String扩展函数
+fun String.isValidEmail(): Boolean {
+    return android.util.Patterns.EMAIL_ADDRESS.matcher(this).matches()
+}
+
+fun String.isValidPhone(): Boolean {
+    return android.util.Patterns.PHONE.matcher(this).matches()
+}
+
+// ✅ 日期扩展函数
+fun Long.toDateString(pattern: String = "yyyy-MM-dd HH:mm:ss"): String {
+    val formatter = SimpleDateFormat(pattern, Locale.getDefault())
+    return formatter.format(Date(this))
+}
+```
+
+## 16. 构建配置规范
+### Gradle配置
+```kotlin
+// ✅ app/build.gradle.kts
+android {
+    compileSdk 34
+    
+    defaultConfig {
+        applicationId "com.example.myapp"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+        
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        
+        // 多语言支持
+        resourceConfigurations += listOf("zh", "en")
+    }
+    
+    buildTypes {
+        debug {
+            isDebuggable = true
+            isMinifyEnabled = false
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+            
+            buildConfigField("String", "API_BASE_URL", "\"https://dev-api.example.com\"")
+            buildConfigField("boolean", "ENABLE_LOGGING", "true")
+        }
+        
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            
+            buildConfigField("String", "API_BASE_URL", "\"https://api.example.com\"")
+            buildConfigField("boolean", "ENABLE_LOGGING", "false")
+        }
+    }
+    
+    buildFeatures {
+        viewBinding = true
+        buildConfig = true
+    }
+    
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+    
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+}
+
+dependencies {
+    // Android核心库
+    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("androidx.appcompat:appcompat:1.6.1")
+    implementation("com.google.android.material:material:1.11.0")
+    implementation("androidx.constraintlayout:constraintlayout:2.1.4")
+    
+    // Architecture Components
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0")
+    implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.7.0")
+    implementation("androidx.navigation:navigation-fragment-ktx:2.7.6")
+    implementation("androidx.navigation:navigation-ui-ktx:2.7.6")
+    
+    // 依赖注入
+    implementation("com.google.dagger:hilt-android:2.48.1")
+    kapt("com.google.dagger:hilt-compiler:2.48.1")
+    
+    // 网络请求
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    
+    // 图片加载
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+    
+    // 数据库
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
+    
+    // 测试
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.mockito:mockito-core:5.7.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+}
+```

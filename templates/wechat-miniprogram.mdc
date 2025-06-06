@@ -1,0 +1,1283 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 来福哥的微信小程序开发规则
+
+**适用范围**: 微信小程序开发  
+
+## 1. 框架概述
+
+### 1.1 微信小程序简介
+微信小程序是腾讯推出的轻量级应用开发平台，具有以下特性：
+- 无需下载安装，即用即走
+- 接近原生应用的用户体验
+- 丰富的微信生态API支持
+- 完善的开发工具链
+- 多端统一开发（小程序、H5、App）
+
+### 1.2 技术栈
+- **开发语言**: JavaScript / TypeScript
+- **模板语言**: WXML (WeiXin Markup Language)
+- **样式语言**: WXSS (WeiXin Style Sheets)
+- **配置文件**: JSON
+- **状态管理**: MobX / Redux
+- **UI组件库**: WeUI / Vant Weapp / ColorUI
+- **工具库**: WePY / Taro / uni-app
+
+## 2. 项目结构规范
+```
+miniprogram/
+├── app.js                        # 小程序逻辑
+├── app.json                      # 小程序公共配置
+├── app.wxss                      # 小程序公共样式表
+├── project.config.json           # 项目配置文件
+├── sitemap.json                  # 站点地图
+├── pages/                        # 页面文件
+│   ├── index/                    # 首页
+│   │   ├── index.js             # 页面逻辑
+│   │   ├── index.json           # 页面配置
+│   │   ├── index.wxml           # 页面结构
+│   │   └── index.wxss           # 页面样式
+│   ├── user/                     # 用户页面
+│   └── detail/                   # 详情页面
+├── components/                   # 自定义组件
+│   ├── user-card/               # 用户卡片组件
+│   │   ├── user-card.js
+│   │   ├── user-card.json
+│   │   ├── user-card.wxml
+│   │   └── user-card.wxss
+│   └── loading/                  # 加载组件
+├── utils/                        # 工具类
+│   ├── api.js                   # API请求封装
+│   ├── storage.js               # 本地存储
+│   ├── util.js                  # 通用工具
+│   └── constants.js             # 常量定义
+├── images/                       # 图片资源
+├── libs/                         # 第三方库
+└── styles/                       # 公共样式
+    ├── common.wxss              # 通用样式
+    ├── variables.wxss           # 样式变量
+    └── mixins.wxss              # 样式混入
+```
+
+## 3. 应用配置规范
+### app.json 全局配置
+```json
+{
+  "pages": [
+    "pages/index/index",
+    "pages/user/user",
+    "pages/detail/detail"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#fff",
+    "navigationBarTitleText": "我的小程序",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f8f8f8",
+    "enablePullDownRefresh": true,
+    "onReachBottomDistance": 50
+  },
+  "tabBar": {
+    "color": "#7A7E83",
+    "selectedColor": "#3cc51f",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "iconPath": "images/icon_home.png",
+        "selectedIconPath": "images/icon_home_selected.png",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/user/user",
+        "iconPath": "images/icon_user.png",
+        "selectedIconPath": "images/icon_user_selected.png",
+        "text": "我的"
+      }
+    ]
+  },
+  "networkTimeout": {
+    "request": 10000,
+    "downloadFile": 10000
+  },
+  "debug": true,
+  "permission": {
+    "scope.userLocation": {
+      "desc": "你的位置信息将用于小程序位置接口的效果展示"
+    }
+  },
+  "requiredBackgroundModes": ["audio", "location"],
+  "plugins": {
+    "myPlugin": {
+      "version": "1.0.0",
+      "provider": "wxidxxxxxxxxxxxxxxxx"
+    }
+  }
+}
+```
+
+### 页面配置示例
+```json
+{
+  "navigationBarTitleText": "用户详情",
+  "enablePullDownRefresh": true,
+  "onReachBottomDistance": 50,
+  "backgroundTextStyle": "dark",
+  "usingComponents": {
+    "user-card": "/components/user-card/user-card",
+    "loading": "/components/loading/loading"
+  }
+}
+```
+
+## 4. 页面开发规范
+### 页面基础结构
+```javascript
+// ✅ pages/index/index.js
+Page({
+  /**
+   * 页面的初始数据
+   */
+  data: {
+    userInfo: null,
+    hasUserInfo: false,
+    canIUse: wx.canIUse('button.open-type.getUserInfo'),
+    loading: false,
+    list: [],
+    page: 1,
+    hasMore: true
+  },
+
+  /**
+   * 生命周期函数--监听页面加载
+   */
+  onLoad(options) {
+    console.log('页面加载参数:', options);
+    
+    // 获取用户信息
+    this.getUserInfo();
+    
+    // 加载页面数据
+    this.loadData();
+  },
+
+  /**
+   * 生命周期函数--监听页面初次渲染完成
+   */
+  onReady() {
+    console.log('页面初次渲染完成');
+  },
+
+  /**
+   * 生命周期函数--监听页面显示
+   */
+  onShow() {
+    console.log('页面显示');
+    
+    // 检查是否需要刷新数据
+    if (this.data.needRefresh) {
+      this.loadData();
+      this.setData({ needRefresh: false });
+    }
+  },
+
+  /**
+   * 生命周期函数--监听页面隐藏
+   */
+  onHide() {
+    console.log('页面隐藏');
+  },
+
+  /**
+   * 生命周期函数--监听页面卸载
+   */
+  onUnload() {
+    console.log('页面卸载');
+    
+    // 清理资源
+    this.cleanup();
+  },
+
+  /**
+   * 页面相关事件处理函数--监听用户下拉动作
+   */
+  onPullDownRefresh() {
+    console.log('下拉刷新');
+    this.refreshData();
+  },
+
+  /**
+   * 页面上拉触底事件的处理函数
+   */
+  onReachBottom() {
+    console.log('上拉加载更多');
+    if (this.data.hasMore && !this.data.loading) {
+      this.loadMore();
+    }
+  },
+
+  /**
+   * 用户点击右上角分享
+   */
+  onShareAppMessage() {
+    return {
+      title: '分享标题',
+      path: '/pages/index/index',
+      imageUrl: '/images/share.jpg'
+    };
+  },
+
+  /**
+   * 用户点击右上角分享到朋友圈
+   */
+  onShareTimeline() {
+    return {
+      title: '分享到朋友圈的标题',
+      query: 'from=timeline',
+      imageUrl: '/images/share.jpg'
+    };
+  },
+
+  // ========== 自定义方法 ==========
+
+  /**
+   * 获取用户信息
+   */
+  async getUserInfo() {
+    try {
+      const userInfo = await this.getUserProfile();
+      this.setData({
+        userInfo,
+        hasUserInfo: true
+      });
+    } catch (error) {
+      console.error('获取用户信息失败:', error);
+    }
+  },
+
+  /**
+   * 获取用户资料
+   */
+  getUserProfile() {
+    return new Promise((resolve, reject) => {
+      wx.getUserProfile({
+        desc: '用于完善用户信息',
+        success: (res) => resolve(res.userInfo),
+        fail: reject
+      });
+    });
+  },
+
+  /**
+   * 加载数据
+   */
+  async loadData() {
+    if (this.data.loading) return;
+
+    this.setData({ loading: true });
+
+    try {
+      const result = await this.fetchData({
+        page: 1,
+        pageSize: 20
+      });
+
+      this.setData({
+        list: result.list,
+        page: 1,
+        hasMore: result.hasMore
+      });
+
+    } catch (error) {
+      console.error('加载数据失败:', error);
+      this.showError('加载数据失败');
+    } finally {
+      this.setData({ loading: false });
+      wx.stopPullDownRefresh();
+    }
+  },
+
+  /**
+   * 刷新数据
+   */
+  async refreshData() {
+    this.setData({
+      page: 1,
+      hasMore: true
+    });
+    await this.loadData();
+  },
+
+  /**
+   * 加载更多
+   */
+  async loadMore() {
+    const nextPage = this.data.page + 1;
+    
+    this.setData({ loading: true });
+
+    try {
+      const result = await this.fetchData({
+        page: nextPage,
+        pageSize: 20
+      });
+
+      this.setData({
+        list: [...this.data.list, ...result.list],
+        page: nextPage,
+        hasMore: result.hasMore
+      });
+
+    } catch (error) {
+      console.error('加载更多失败:', error);
+      this.showError('加载更多失败');
+    } finally {
+      this.setData({ loading: false });
+    }
+  },
+
+  /**
+   * 获取数据
+   */
+  fetchData(params) {
+    return new Promise((resolve, reject) => {
+      wx.request({
+        url: 'https://api.example.com/data',
+        method: 'GET',
+        data: params,
+        success: (res) => {
+          if (res.data.success) {
+            resolve(res.data.data);
+          } else {
+            reject(new Error(res.data.message));
+          }
+        },
+        fail: reject
+      });
+    });
+  },
+
+  /**
+   * 点击事件处理
+   */
+  onItemTap(e) {
+    const { item } = e.currentTarget.dataset;
+    console.log('点击项目:', item);
+
+    wx.navigateTo({
+      url: `/pages/detail/detail?id=${item.id}`
+    });
+  },
+
+  /**
+   * 登录按钮点击
+   */
+  onLoginTap() {
+    wx.getUserProfile({
+      desc: '用于完善用户信息',
+      success: (res) => {
+        this.setData({
+          userInfo: res.userInfo,
+          hasUserInfo: true
+        });
+        
+        // 调用登录接口
+        this.doLogin(res.userInfo);
+      },
+      fail: (error) => {
+        console.error('获取用户信息失败:', error);
+      }
+    });
+  },
+
+  /**
+   * 执行登录
+   */
+  async doLogin(userInfo) {
+    try {
+      wx.showLoading({ title: '登录中...' });
+
+      // 获取登录凭证
+      const loginRes = await this.wxLogin();
+      
+      // 发送登录请求
+      const result = await this.sendLoginRequest({
+        code: loginRes.code,
+        userInfo
+      });
+
+      if (result.success) {
+        // 保存用户信息
+        wx.setStorageSync('userToken', result.token);
+        wx.setStorageSync('userInfo', result.userInfo);
+        
+        this.showSuccess('登录成功');
+      } else {
+        this.showError(result.message || '登录失败');
+      }
+
+    } catch (error) {
+      console.error('登录失败:', error);
+      this.showError('登录失败');
+    } finally {
+      wx.hideLoading();
+    }
+  },
+
+  /**
+   * 微信登录
+   */
+  wxLogin() {
+    return new Promise((resolve, reject) => {
+      wx.login({
+        success: resolve,
+        fail: reject
+      });
+    });
+  },
+
+  /**
+   * 发送登录请求
+   */
+  sendLoginRequest(data) {
+    return new Promise((resolve, reject) => {
+      wx.request({
+        url: 'https://api.example.com/login',
+        method: 'POST',
+        data,
+        success: (res) => resolve(res.data),
+        fail: reject
+      });
+    });
+  },
+
+  /**
+   * 显示成功提示
+   */
+  showSuccess(message) {
+    wx.showToast({
+      title: message,
+      icon: 'success',
+      duration: 2000
+    });
+  },
+
+  /**
+   * 显示错误提示
+   */
+  showError(message) {
+    wx.showToast({
+      title: message,
+      icon: 'none',
+      duration: 2000
+    });
+  },
+
+  /**
+   * 清理资源
+   */
+  cleanup() {
+    // 清理定时器、取消请求等
+  }
+});
+```
+
+### WXML模板示例
+```xml
+<!-- ✅ pages/index/index.wxml -->
+<view class="container">
+  <!-- 用户信息区域 -->
+  <view class="user-section">
+    <block wx:if="{{hasUserInfo}}">
+      <user-card user-info="{{userInfo}}" />
+    </block>
+    <block wx:else>
+      <view class="login-area">
+        <button class="login-btn" open-type="getUserInfo" bindtap="onLoginTap">
+          点击登录
+        </button>
+      </view>
+    </block>
+  </view>
+
+  <!-- 列表区域 -->
+  <view class="list-section">
+    <view class="section-title">数据列表</view>
+    
+    <!-- 列表项 -->
+    <view class="list-container">
+      <block wx:for="{{list}}" wx:key="id">
+        <view 
+          class="list-item" 
+          data-item="{{item}}" 
+          bindtap="onItemTap"
+        >
+          <image class="item-image" src="{{item.image}}" mode="aspectFill" />
+          <view class="item-content">
+            <view class="item-title">{{item.title}}</view>
+            <view class="item-desc">{{item.description}}</view>
+            <view class="item-meta">
+              <text class="item-time">{{item.createTime}}</text>
+              <text class="item-count">{{item.viewCount}}次浏览</text>
+            </view>
+          </view>
+          <view class="item-arrow">
+            <image src="/images/arrow_right.png" />
+          </view>
+        </view>
+      </block>
+    </view>
+
+    <!-- 加载状态 -->
+    <view class="loading-area" wx:if="{{loading}}">
+      <loading text="加载中..." />
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-area" wx:if="{{!loading && list.length === 0}}">
+      <image class="empty-image" src="/images/empty.png" />
+      <text class="empty-text">暂无数据</text>
+    </view>
+
+    <!-- 没有更多 -->
+    <view class="no-more" wx:if="{{!hasMore && list.length > 0}}">
+      <text>没有更多数据了</text>
+    </view>
+  </view>
+</view>
+```
+
+### WXSS样式示例
+```css
+/* ✅ pages/index/index.wxss */
+
+.container {
+  min-height: 100vh;
+  background-color: #f8f8f8;
+  padding: 20rpx;
+}
+
+/* 用户信息区域 */
+.user-section {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+.login-area {
+  text-align: center;
+  padding: 40rpx 0;
+}
+
+.login-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  border-radius: 50rpx;
+  border: none;
+  font-size: 32rpx;
+  font-weight: 500;
+  padding: 24rpx 60rpx;
+}
+
+.login-btn::after {
+  border: none;
+}
+
+/* 列表区域 */
+.list-section {
+  background: #fff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
+}
+
+.section-title {
+  font-size: 36rpx;
+  font-weight: bold;
+  color: #333;
+  padding: 32rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+
+.list-container {
+  padding: 0;
+}
+
+.list-item {
+  display: flex;
+  align-items: center;
+  padding: 32rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+  transition: all 0.3s;
+}
+
+.list-item:last-child {
+  border-bottom: none;
+}
+
+.list-item:active {
+  background-color: #f8f8f8;
+}
+
+.item-image {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 12rpx;
+  margin-right: 24rpx;
+}
+
+.item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.item-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.item-desc {
+  font-size: 28rpx;
+  color: #666;
+  line-height: 1.4;
+  margin-bottom: 12rpx;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.item-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.item-time,
+.item-count {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.item-arrow {
+  width: 32rpx;
+  height: 32rpx;
+  margin-left: 16rpx;
+}
+
+.item-arrow image {
+  width: 100%;
+  height: 100%;
+}
+
+/* 加载状态 */
+.loading-area {
+  padding: 40rpx;
+  text-align: center;
+}
+
+/* 空状态 */
+.empty-area {
+  padding: 80rpx 40rpx;
+  text-align: center;
+}
+
+.empty-image {
+  width: 200rpx;
+  height: 200rpx;
+  margin-bottom: 24rpx;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #999;
+}
+
+/* 没有更多 */
+.no-more {
+  padding: 40rpx;
+  text-align: center;
+  font-size: 28rpx;
+  color: #999;
+}
+
+/* 响应式设计 */
+@media (max-width: 750rpx) {
+  .item-image {
+    width: 100rpx;
+    height: 100rpx;
+  }
+  
+  .item-title {
+    font-size: 30rpx;
+  }
+  
+  .item-desc {
+    font-size: 26rpx;
+  }
+}
+```
+
+## 5. 组件开发规范
+### 自定义组件示例
+```javascript
+// ✅ components/user-card/user-card.js
+Component({
+  /**
+   * 组件的属性列表
+   */
+  properties: {
+    userInfo: {
+      type: Object,
+      value: null,
+      observer(newVal, oldVal) {
+        if (newVal) {
+          this.processUserInfo(newVal);
+        }
+      }
+    },
+    showEdit: {
+      type: Boolean,
+      value: true
+    },
+    size: {
+      type: String,
+      value: 'normal' // normal, large, small
+    }
+  },
+
+  /**
+   * 组件的初始数据
+   */
+  data: {
+    processedUserInfo: null,
+    avatarUrl: '',
+    displayName: ''
+  },
+
+  /**
+   * 组件的方法列表
+   */
+  methods: {
+    /**
+     * 处理用户信息
+     */
+    processUserInfo(userInfo) {
+      const processedUserInfo = {
+        ...userInfo,
+        displayName: userInfo.nickName || '未设置昵称',
+        avatarUrl: userInfo.avatarUrl || '/images/default_avatar.png'
+      };
+
+      this.setData({
+        processedUserInfo,
+        avatarUrl: processedUserInfo.avatarUrl,
+        displayName: processedUserInfo.displayName
+      });
+    },
+
+    /**
+     * 点击头像
+     */
+    onAvatarTap() {
+      this.triggerEvent('avatarTap', {
+        userInfo: this.data.processedUserInfo
+      });
+    },
+
+    /**
+     * 点击编辑按钮
+     */
+    onEditTap() {
+      this.triggerEvent('editTap', {
+        userInfo: this.data.processedUserInfo
+      });
+    },
+
+    /**
+     * 头像加载失败
+     */
+    onAvatarError() {
+      this.setData({
+        avatarUrl: '/images/default_avatar.png'
+      });
+    }
+  },
+
+  /**
+   * 组件生命周期
+   */
+  lifetimes: {
+    attached() {
+      console.log('用户卡片组件已挂载');
+    },
+
+    detached() {
+      console.log('用户卡片组件已卸载');
+    }
+  },
+
+  /**
+   * 组件所在页面的生命周期
+   */
+  pageLifetimes: {
+    show() {
+      console.log('用户卡片组件所在页面显示');
+    },
+
+    hide() {
+      console.log('用户卡片组件所在页面隐藏');
+    }
+  }
+});
+```
+
+```json
+{
+  "component": true,
+  "usingComponents": {}
+}
+```
+
+```xml
+<!-- ✅ components/user-card/user-card.wxml -->
+<view class="user-card {{size}}">
+  <view class="user-avatar" bindtap="onAvatarTap">
+    <image 
+      class="avatar-image" 
+      src="{{avatarUrl}}" 
+      mode="aspectFill"
+      binderror="onAvatarError"
+    />
+  </view>
+  
+  <view class="user-info">
+    <view class="user-name">{{displayName}}</view>
+    <view class="user-desc" wx:if="{{processedUserInfo.description}}">
+      {{processedUserInfo.description}}
+    </view>
+  </view>
+  
+  <view class="user-actions" wx:if="{{showEdit}}">
+    <button class="edit-btn" size="mini" bindtap="onEditTap">
+      编辑
+    </button>
+  </view>
+</view>
+```
+
+```css
+/* ✅ components/user-card/user-card.wxss */
+.user-card {
+  display: flex;
+  align-items: center;
+  padding: 24rpx;
+  background: #fff;
+  border-radius: 12rpx;
+}
+
+.user-avatar {
+  margin-right: 24rpx;
+}
+
+.avatar-image {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  border: 2rpx solid #f0f0f0;
+}
+
+.user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.user-name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-desc {
+  font-size: 28rpx;
+  color: #999;
+  line-height: 1.4;
+}
+
+.user-actions {
+  margin-left: 16rpx;
+}
+
+.edit-btn {
+  background: #007aff;
+  color: #fff;
+  border: none;
+  font-size: 24rpx;
+}
+
+/* 尺寸变体 */
+.user-card.large .avatar-image {
+  width: 140rpx;
+  height: 140rpx;
+}
+
+.user-card.large .user-name {
+  font-size: 36rpx;
+}
+
+.user-card.small .avatar-image {
+  width: 80rpx;
+  height: 80rpx;
+}
+
+.user-card.small .user-name {
+  font-size: 28rpx;
+}
+
+.user-card.small .user-desc {
+  font-size: 24rpx;
+}
+```
+
+## 6. API请求封装
+### 网络请求工具
+```javascript
+// ✅ utils/api.js
+class ApiManager {
+  constructor() {
+    this.baseURL = 'https://api.example.com';
+    this.timeout = 10000;
+    this.requestInterceptors = [];
+    this.responseInterceptors = [];
+  }
+
+  /**
+   * 设置基础URL
+   */
+  setBaseURL(url) {
+    this.baseURL = url;
+  }
+
+  /**
+   * 添加请求拦截器
+   */
+  addRequestInterceptor(interceptor) {
+    this.requestInterceptors.push(interceptor);
+  }
+
+  /**
+   * 添加响应拦截器
+   */
+  addResponseInterceptor(interceptor) {
+    this.responseInterceptors.push(interceptor);
+  }
+
+  /**
+   * 执行请求拦截器
+   */
+  async runRequestInterceptors(config) {
+    let processedConfig = config;
+    
+    for (const interceptor of this.requestInterceptors) {
+      try {
+        processedConfig = await interceptor(processedConfig);
+      } catch (error) {
+        console.error('请求拦截器执行失败:', error);
+      }
+    }
+    
+    return processedConfig;
+  }
+
+  /**
+   * 执行响应拦截器
+   */
+  async runResponseInterceptors(response) {
+    let processedResponse = response;
+    
+    for (const interceptor of this.responseInterceptors) {
+      try {
+        processedResponse = await interceptor(processedResponse);
+      } catch (error) {
+        console.error('响应拦截器执行失败:', error);
+      }
+    }
+    
+    return processedResponse;
+  }
+
+  /**
+   * 通用请求方法
+   */
+  async request(options) {
+    try {
+      // 默认配置
+      const defaultConfig = {
+        url: '',
+        method: 'GET',
+        data: {},
+        header: {
+          'Content-Type': 'application/json'
+        },
+        timeout: this.timeout
+      };
+
+      // 合并配置
+      let config = { ...defaultConfig, ...options };
+      
+      // 处理URL
+      if (config.url && !config.url.startsWith('http')) {
+        config.url = this.baseURL + config.url;
+      }
+
+      // 执行请求拦截器
+      config = await this.runRequestInterceptors(config);
+
+      // 显示加载提示
+      if (config.showLoading !== false) {
+        wx.showLoading({
+          title: config.loadingText || '请求中...',
+          mask: true
+        });
+      }
+
+      // 发起请求
+      const response = await this.makeRequest(config);
+
+      // 执行响应拦截器
+      const processedResponse = await this.runResponseInterceptors(response);
+
+      return processedResponse;
+
+    } catch (error) {
+      console.error('请求失败:', error);
+      
+      // 显示错误提示
+      if (options.showError !== false) {
+        wx.showToast({
+          title: error.message || '请求失败',
+          icon: 'none'
+        });
+      }
+      
+      throw error;
+    } finally {
+      // 隐藏加载提示
+      if (options.showLoading !== false) {
+        wx.hideLoading();
+      }
+    }
+  }
+
+  /**
+   * 发起实际请求
+   */
+  makeRequest(config) {
+    return new Promise((resolve, reject) => {
+      wx.request({
+        ...config,
+        success: (res) => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            resolve(res);
+          } else {
+            reject(new Error(`HTTP ${res.statusCode}: ${res.data?.message || '请求失败'}`));
+          }
+        },
+        fail: (error) => {
+          reject(new Error(error.errMsg || '网络请求失败'));
+        }
+      });
+    });
+  }
+
+  /**
+   * GET请求
+   */
+  get(url, data = {}, options = {}) {
+    return this.request({
+      url,
+      method: 'GET',
+      data,
+      ...options
+    });
+  }
+
+  /**
+   * POST请求
+   */
+  post(url, data = {}, options = {}) {
+    return this.request({
+      url,
+      method: 'POST',
+      data,
+      ...options
+    });
+  }
+
+  /**
+   * PUT请求
+   */
+  put(url, data = {}, options = {}) {
+    return this.request({
+      url,
+      method: 'PUT',
+      data,
+      ...options
+    });
+  }
+
+  /**
+   * DELETE请求
+   */
+  delete(url, data = {}, options = {}) {
+    return this.request({
+      url,
+      method: 'DELETE',
+      data,
+      ...options
+    });
+  }
+
+  /**
+   * 文件上传
+   */
+  upload(url, filePath, options = {}) {
+    return new Promise((resolve, reject) => {
+      wx.uploadFile({
+        url: this.baseURL + url,
+        filePath,
+        name: options.name || 'file',
+        formData: options.formData || {},
+        header: options.header || {},
+        success: (res) => {
+          try {
+            const data = JSON.parse(res.data);
+            resolve({ data, statusCode: res.statusCode });
+          } catch (error) {
+            resolve({ data: res.data, statusCode: res.statusCode });
+          }
+        },
+        fail: reject
+      });
+    });
+  }
+
+  /**
+   * 文件下载
+   */
+  download(url, options = {}) {
+    return new Promise((resolve, reject) => {
+      wx.downloadFile({
+        url: this.baseURL + url,
+        header: options.header || {},
+        success: resolve,
+        fail: reject
+      });
+    });
+  }
+}
+
+// 创建实例
+const api = new ApiManager();
+
+// 添加通用请求拦截器
+api.addRequestInterceptor(async (config) => {
+  // 添加用户token
+  const token = wx.getStorageSync('userToken');
+  if (token) {
+    config.header.Authorization = `Bearer ${token}`;
+  }
+  
+  // 添加设备信息
+  const systemInfo = wx.getSystemInfoSync();
+  config.header['X-Device-Platform'] = systemInfo.platform;
+  config.header['X-Device-Model'] = systemInfo.model;
+  
+  return config;
+});
+
+// 添加通用响应拦截器
+api.addResponseInterceptor(async (response) => {
+  const { data } = response;
+  
+  // 统一处理响应格式
+  if (data && typeof data === 'object') {
+    if (data.code === 401) {
+      // token过期，跳转到登录页
+      wx.removeStorageSync('userToken');
+      wx.removeStorageSync('userInfo');
+      
+      wx.reLaunch({
+        url: '/pages/login/login'
+      });
+      
+      throw new Error('登录已过期，请重新登录');
+    }
+    
+    if (data.code !== 0 && data.code !== 200) {
+      throw new Error(data.message || '请求失败');
+    }
+  }
+  
+  return response;
+});
+
+// 导出API方法
+export default api;
+
+// 具体业务API
+export const userApi = {
+  // 获取用户信息
+  getUserInfo: (id) => api.get(`/users/${id}`),
+  
+  // 更新用户信息
+  updateUserInfo: (data) => api.put('/users/me', data),
+  
+  // 获取用户列表
+  getUserList: (params) => api.get('/users', params),
+  
+  // 上传头像
+  uploadAvatar: (filePath) => api.upload('/users/avatar', filePath, { name: 'avatar' })
+};
+
+export const postApi = {
+  // 获取文章列表
+  getPostList: (params) => api.get('/posts', params),
+  
+  // 获取文章详情
+  getPostDetail: (id) => api.get(`/posts/${id}`),
+  
+  // 创建文章
+  createPost: (data) => api.post('/posts', data),
+  
+  // 更新文章
+  updatePost: (id, data) => api.put(`/posts/${id}`, data),
+  
+  // 删除文章
+  deletePost: (id) => api.delete(`/posts/${id}`)
+};
+```
+
+这个微信小程序开发规则模板涵盖了：
+- 项目结构和配置规范
+- 页面开发最佳实践
+- 组件开发规范
+- API请求封装
+- 生命周期管理
+
+它为微信小程序开发提供了完整的指导，帮助开发者构建高质量的小程序应用。

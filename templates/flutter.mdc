@@ -1,0 +1,934 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 来福哥的Flutter开发规则
+
+**适用范围**: 基于Flutter框架的跨平台移动应用开发  
+
+## 1. 框架概述
+
+### 1.1 Flutter简介
+Flutter是Google推出的开源UI工具包，具有以下核心特性：
+- 单一代码库，支持iOS和Android双平台
+- 高性能，接近原生应用体验
+- 热重载，快速开发调试
+- 丰富的Material Design和Cupertino组件
+- 强大的自定义UI能力
+
+### 1.2 技术栈
+- **开发语言**: Dart
+- **UI框架**: Flutter Widget
+- **状态管理**: Provider / Riverpod / Bloc
+- **路由管理**: GoRouter / AutoRoute
+- **网络请求**: Dio / HTTP
+- **本地存储**: SharedPreferences / Hive / SQLite
+- **依赖注入**: GetIt
+
+## 2. 项目结构规范
+```
+lib/
+├── main.dart                    # 应用入口
+├── app/                        # 应用层
+│   ├── app.dart               # 应用配置
+│   └── routes/                # 路由配置
+├── core/                      # 核心功能
+│   ├── constants/             # 常量定义
+│   ├── utils/                 # 工具类
+│   ├── services/              # 服务类
+│   └── extensions/            # 扩展方法
+├── data/                      # 数据层
+│   ├── models/                # 数据模型
+│   ├── repositories/          # 数据仓库
+│   ├── datasources/           # 数据源
+│   └── providers/             # 状态管理
+├── presentation/              # 表现层
+│   ├── pages/                 # 页面
+│   ├── widgets/               # 可复用组件
+│   └── themes/                # 主题样式
+├── generated/                 # 自动生成文件
+└── l10n/                      # 国际化文件
+```
+
+## 3. 开发规范
+
+### 3.1 代码风格规范
+### 命名规则
+```dart
+// ✅ 类名：使用PascalCase
+class UserProfile {
+  // 类内容
+}
+
+// ✅ 变量、方法名：使用camelCase
+String userName = 'flutter_dev';
+void getUserData() {}
+
+// ✅ 常量：使用camelCase
+const String apiBaseUrl = 'https://api.example.com';
+
+// ✅ 私有成员：使用下划线前缀
+String _privateField;
+void _privateMethod() {}
+
+// ✅ 文件名：使用snake_case
+// user_profile_page.dart
+// user_service.dart
+```
+
+### 代码格式化
+```dart
+// ✅ 使用dart format格式化代码
+// 行长度限制：80字符
+// 使用2个空格缩进
+class UserCard extends StatelessWidget {
+  const UserCard({
+    super.key,
+    required this.user,
+    this.onTap,
+  });
+
+  final User user;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        title: Text(user.name),
+        subtitle: Text(user.email),
+        onTap: onTap,
+      ),
+    );
+  }
+}
+```
+
+### 3.2 Widget开发规范
+### StatelessWidget使用
+```dart
+// ✅ 无状态组件
+class CustomButton extends StatelessWidget {
+  const CustomButton({
+    super.key,
+    required this.text,
+    required this.onPressed,
+    this.color,
+  });
+
+  final String text;
+  final VoidCallback onPressed;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color ?? Theme.of(context).primaryColor,
+      ),
+      onPressed: onPressed,
+      child: Text(text),
+    );
+  }
+}
+```
+
+### StatefulWidget使用
+```dart
+// ✅ 有状态组件
+class Counter extends StatefulWidget {
+  const Counter({super.key});
+
+  @override
+  State<Counter> createState() => _CounterState();
+}
+
+class _CounterState extends State<Counter> {
+  int _count = 0;
+
+  void _increment() {
+    setState(() {
+      _count++;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text('计数: $_count'),
+        ElevatedButton(
+          onPressed: _increment,
+          child: const Text('增加'),
+        ),
+      ],
+    );
+  }
+
+  @override
+  void dispose() {
+    // 清理资源
+    super.dispose();
+  }
+}
+```
+
+## 4. 状态管理规范
+### Provider使用
+```dart
+// ✅ 状态类定义
+class UserProvider extends ChangeNotifier {
+  User? _user;
+  bool _isLoading = false;
+
+  User? get user => _user;
+  bool get isLoading => _isLoading;
+
+  Future<void> loadUser(String userId) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      _user = await userRepository.getUser(userId);
+    } catch (e) {
+      // 错误处理
+      debugPrint('加载用户数据失败: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+}
+
+// ✅ Provider使用
+class UserPage extends StatelessWidget {
+  const UserPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<UserProvider>(
+      builder: (context, userProvider, child) {
+        if (userProvider.isLoading) {
+          return const CircularProgressIndicator();
+        }
+
+        final user = userProvider.user;
+        if (user == null) {
+          return const Text('用户不存在');
+        }
+
+        return UserCard(user: user);
+      },
+    );
+  }
+}
+```
+
+### Riverpod使用
+```dart
+// ✅ Provider定义
+final userProvider = StateNotifierProvider<UserNotifier, AsyncValue<User>>(
+  (ref) => UserNotifier(ref.read(userRepositoryProvider)),
+);
+
+class UserNotifier extends StateNotifier<AsyncValue<User>> {
+  UserNotifier(this._userRepository) : super(const AsyncValue.loading());
+
+  final UserRepository _userRepository;
+
+  Future<void> loadUser(String userId) async {
+    state = const AsyncValue.loading();
+    state = await AsyncValue.guard(() => _userRepository.getUser(userId));
+  }
+}
+
+// ✅ 使用Provider
+class UserPage extends ConsumerWidget {
+  const UserPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final userAsync = ref.watch(userProvider);
+
+    return userAsync.when(
+      data: (user) => UserCard(user: user),
+      loading: () => const CircularProgressIndicator(),
+      error: (error, stack) => Text('错误: $error'),
+    );
+  }
+}
+```
+
+## 5. 数据模型规范
+### Model定义
+```dart
+// ✅ 数据模型类
+class User {
+  const User({
+    required this.id,
+    required this.name,
+    required this.email,
+    this.avatar,
+  });
+
+  final String id;
+  final String name;
+  final String email;
+  final String? avatar;
+
+  // JSON序列化
+  factory User.fromJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      email: json['email'] as String,
+      avatar: json['avatar'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'email': email,
+      'avatar': avatar,
+    };
+  }
+
+  // 相等性比较
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is User && other.id == id;
+  }
+
+  @override
+  int get hashCode => id.hashCode;
+
+  // 复制方法
+  User copyWith({
+    String? id,
+    String? name,
+    String? email,
+    String? avatar,
+  }) {
+    return User(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      avatar: avatar ?? this.avatar,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'User(id: $id, name: $name, email: $email, avatar: $avatar)';
+  }
+}
+```
+
+## 6. 网络请求规范
+### HTTP客户端配置
+```dart
+// ✅ Dio配置
+class ApiClient {
+  static final _instance = ApiClient._internal();
+  factory ApiClient() => _instance;
+  ApiClient._internal();
+
+  late final Dio _dio;
+
+  void init() {
+    _dio = Dio(BaseOptions(
+      baseUrl: 'https://api.example.com',
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    ));
+
+    // 添加拦截器
+    _dio.interceptors.add(LogInterceptor(
+      requestBody: true,
+      responseBody: true,
+    ));
+  }
+
+  Dio get dio => _dio;
+}
+
+// ✅ API服务类
+class UserService {
+  final ApiClient _apiClient = ApiClient();
+
+  Future<User> getUser(String userId) async {
+    try {
+      final response = await _apiClient.dio.get('/users/$userId');
+      return User.fromJson(response.data);
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  Exception _handleDioError(DioException e) {
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+        return const NetworkException('连接超时');
+      case DioExceptionType.receiveTimeout:
+        return const NetworkException('接收数据超时');
+      case DioExceptionType.badResponse:
+        return ServerException('服务器错误: ${e.response?.statusCode}');
+      default:
+        return const NetworkException('网络连接失败');
+    }
+  }
+}
+```
+
+## 7. 本地存储规范
+### SharedPreferences使用
+```dart
+// ✅ 存储服务
+class StorageService {
+  static const String _keyUser = 'user';
+  static const String _keyTheme = 'theme';
+
+  static Future<void> saveUser(User user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyUser, jsonEncode(user.toJson()));
+  }
+
+  static Future<User?> getUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userJson = prefs.getString(_keyUser);
+    if (userJson != null) {
+      return User.fromJson(jsonDecode(userJson));
+    }
+    return null;
+  }
+
+  static Future<void> saveThemeMode(ThemeMode mode) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyTheme, mode.name);
+  }
+
+  static Future<ThemeMode> getThemeMode() async {
+    final prefs = await SharedPreferences.getInstance();
+    final theme = prefs.getString(_keyTheme);
+    return ThemeMode.values.firstWhere(
+      (mode) => mode.name == theme,
+      orElse: () => ThemeMode.system,
+    );
+  }
+}
+```
+
+## 8. 路由管理规范
+### GoRouter使用
+```dart
+// ✅ 路由配置
+final GoRouter router = GoRouter(
+  initialLocation: '/',
+  routes: [
+    GoRoute(
+      path: '/',
+      builder: (context, state) => const HomePage(),
+    ),
+    GoRoute(
+      path: '/user/:id',
+      builder: (context, state) {
+        final userId = state.pathParameters['id']!;
+        return UserDetailPage(userId: userId);
+      },
+    ),
+    GoRoute(
+      path: '/settings',
+      builder: (context, state) => const SettingsPage(),
+      routes: [
+        GoRoute(
+          path: '/profile',
+          builder: (context, state) => const ProfilePage(),
+        ),
+      ],
+    ),
+  ],
+);
+
+// ✅ 路由跳转
+class NavigationHelper {
+  static void goToUserDetail(BuildContext context, String userId) {
+    context.go('/user/$userId');
+  }
+
+  static void pushSettings(BuildContext context) {
+    context.push('/settings');
+  }
+
+  static void pop(BuildContext context) {
+    context.pop();
+  }
+}
+```
+
+## 9. 主题管理规范
+### 主题配置
+```dart
+// ✅ 主题定义
+class AppTheme {
+  static ThemeData lightTheme = ThemeData(
+    useMaterial3: true,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.blue,
+      brightness: Brightness.light,
+    ),
+    appBarTheme: const AppBarTheme(
+      centerTitle: true,
+      elevation: 0,
+    ),
+    cardTheme: CardTheme(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    ),
+  );
+
+  static ThemeData darkTheme = ThemeData(
+    useMaterial3: true,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.blue,
+      brightness: Brightness.dark,
+    ),
+    appBarTheme: const AppBarTheme(
+      centerTitle: true,
+      elevation: 0,
+    ),
+    cardTheme: CardTheme(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+    ),
+  );
+}
+```
+
+## 10. 国际化规范
+### 多语言配置
+```dart
+// ✅ 支持的语言
+class AppLocalizations {
+  static const List<Locale> supportedLocales = [
+    Locale('zh', 'CN'), // 简体中文
+    Locale('en', 'US'), // 英语
+  ];
+
+  static LocalizationsDelegate<AppLocalizations> get delegate =>
+      _AppLocalizationsDelegate();
+}
+
+// l10n/app_zh.arb
+{
+  "@@locale": "zh",
+  "appTitle": "我的应用",
+  "welcome": "欢迎",
+  "login": "登录",
+  "logout": "退出"
+}
+
+// l10n/app_en.arb
+{
+  "@@locale": "en",
+  "appTitle": "My App",
+  "welcome": "Welcome",
+  "login": "Login",
+  "logout": "Logout"
+}
+```
+
+## 11. 错误处理规范
+### 异常定义
+```dart
+// ✅ 自定义异常
+abstract class AppException implements Exception {
+  const AppException(this.message);
+  final String message;
+}
+
+class NetworkException extends AppException {
+  const NetworkException(super.message);
+}
+
+class ServerException extends AppException {
+  const ServerException(super.message);
+}
+
+class CacheException extends AppException {
+  const CacheException(super.message);
+}
+
+// ✅ 全局错误处理
+class ErrorHandler {
+  static void handle(Object error, StackTrace stackTrace) {
+    debugPrint('错误: $error');
+    debugPrint('堆栈: $stackTrace');
+    
+    // 上报错误到监控系统
+    // FirebaseCrashlytics.instance.recordError(error, stackTrace);
+  }
+
+  static String getErrorMessage(Object error) {
+    if (error is AppException) {
+      return error.message;
+    }
+    return '未知错误';
+  }
+}
+```
+
+## 12. 测试规范
+### 单元测试
+```dart
+// test/models/user_test.dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:myapp/data/models/user.dart';
+
+void main() {
+  group('User', () {
+    test('should create user from json', () {
+      // Arrange
+      final json = {
+        'id': '1',
+        'name': 'John Doe',
+        'email': 'john@example.com',
+      };
+
+      // Act
+      final user = User.fromJson(json);
+
+      // Assert
+      expect(user.id, '1');
+      expect(user.name, 'John Doe');
+      expect(user.email, 'john@example.com');
+    });
+
+    test('should convert user to json', () {
+      // Arrange
+      const user = User(
+        id: '1',
+        name: 'John Doe',
+        email: 'john@example.com',
+      );
+
+      // Act
+      final json = user.toJson();
+
+      // Assert
+      expect(json['id'], '1');
+      expect(json['name'], 'John Doe');
+      expect(json['email'], 'john@example.com');
+    });
+  });
+}
+```
+
+### Widget测试
+```dart
+// test/widgets/user_card_test.dart
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:myapp/presentation/widgets/user_card.dart';
+import 'package:myapp/data/models/user.dart';
+
+void main() {
+  group('UserCard', () {
+    testWidgets('should display user information', (tester) async {
+      // Arrange
+      const user = User(
+        id: '1',
+        name: 'John Doe',
+        email: 'john@example.com',
+      );
+
+      // Act
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: UserCard(user: user),
+          ),
+        ),
+      );
+
+      // Assert
+      expect(find.text('John Doe'), findsOneWidget);
+      expect(find.text('john@example.com'), findsOneWidget);
+    });
+
+    testWidgets('should call onTap when card is tapped', (tester) async {
+      // Arrange
+      const user = User(id: '1', name: 'John', email: 'john@example.com');
+      bool tapped = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: UserCard(
+              user: user,
+              onTap: () => tapped = true,
+            ),
+          ),
+        ),
+      );
+
+      // Act
+      await tester.tap(find.byType(UserCard));
+
+      // Assert
+      expect(tapped, true);
+    });
+  });
+}
+```
+
+## 13. 性能优化指南
+### 构建优化
+```dart
+// ✅ 使用const构造函数
+class MyButton extends StatelessWidget {
+  const MyButton({super.key, required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return ElevatedButton(
+      onPressed: () {},
+      child: Text(text),
+    );
+  }
+}
+
+// ✅ 避免在build方法中创建对象
+class BadExample extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // ❌ 不要在build中创建对象
+    final style = TextStyle(fontSize: 16);
+    return Text('Hello', style: style);
+  }
+}
+
+class GoodExample extends StatelessWidget {
+  // ✅ 在外部定义常量
+  static const TextStyle _textStyle = TextStyle(fontSize: 16);
+
+  @override
+  Widget build(BuildContext context) {
+    return const Text('Hello', style: _textStyle);
+  }
+}
+```
+
+### ListView优化
+```dart
+// ✅ 使用ListView.builder进行大列表渲染
+class UserList extends StatelessWidget {
+  const UserList({super.key, required this.users});
+  final List<User> users;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      itemCount: users.length,
+      itemBuilder: (context, index) {
+        final user = users[index];
+        return UserCard(
+          key: ValueKey(user.id), // 提供key提升性能
+          user: user,
+        );
+      },
+    );
+  }
+}
+```
+
+## 14. 代码质量保证
+### 静态分析
+```yaml
+# analysis_options.yaml
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    - prefer_const_constructors
+    - prefer_const_literals_to_create_immutables
+    - avoid_print
+    - prefer_final_fields
+    - unnecessary_this
+    - sort_constructors_first
+```
+
+### 代码生成
+```dart
+// ✅ 使用json_annotation
+import 'package:json_annotation/json_annotation.dart';
+
+part 'user.g.dart';
+
+@JsonSerializable()
+class User {
+  const User({
+    required this.id,
+    required this.name,
+    required this.email,
+  });
+
+  final String id;
+  final String name;
+  final String email;
+
+  factory User.fromJson(Map<String, dynamic> json) => _$UserFromJson(json);
+  Map<String, dynamic> toJson() => _$UserToJson(this);
+}
+```
+
+## 15. 调试与日志
+### 日志管理
+```dart
+// ✅ 使用logger包
+import 'package:logger/logger.dart';
+
+class AppLogger {
+  static final Logger _logger = Logger(
+    printer: PrettyPrinter(
+      methodCount: 2,
+      errorMethodCount: 8,
+      lineLength: 120,
+      colors: true,
+      printEmojis: true,
+    ),
+  );
+
+  static void debug(String message) {
+    _logger.d(message);
+  }
+
+  static void info(String message) {
+    _logger.i(message);
+  }
+
+  static void warning(String message) {
+    _logger.w(message);
+  }
+
+  static void error(String message, [Object? error, StackTrace? stackTrace]) {
+    _logger.e(message, error: error, stackTrace: stackTrace);
+  }
+}
+```
+
+## 16. 部署与发布
+### 构建配置
+```dart
+// ✅ 环境配置
+class AppConfig {
+  static const String environment = String.fromEnvironment(
+    'ENVIRONMENT',
+    defaultValue: 'development',
+  );
+
+  static const String apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'https://dev-api.example.com',
+  );
+
+  static bool get isProduction => environment == 'production';
+  static bool get isDevelopment => environment == 'development';
+}
+```
+
+### Android构建
+```bash
+# 构建APK
+flutter build apk --release
+
+# 构建AAB
+flutter build appbundle --release
+
+# 构建不同环境
+flutter build apk --release --dart-define=ENVIRONMENT=production
+```
+
+### iOS构建
+```bash
+# 构建iOS
+flutter build ios --release
+
+# 构建不同环境
+flutter build ios --release --dart-define=ENVIRONMENT=production
+```
+
+## 17. 安全实践
+### 敏感数据处理
+```dart
+// ✅ 使用flutter_secure_storage存储敏感数据
+class SecureStorage {
+  static const _storage = FlutterSecureStorage();
+
+  static Future<void> storeToken(String token) async {
+    await _storage.write(key: 'auth_token', value: token);
+  }
+
+  static Future<String?> getToken() async {
+    return await _storage.read(key: 'auth_token');
+  }
+
+  static Future<void> deleteToken() async {
+    await _storage.delete(key: 'auth_token');
+  }
+}
+```
+
+### 网络安全
+```dart
+// ✅ 证书锁定
+class SecureHttpClient {
+  static Dio createSecureClient() {
+    final dio = Dio();
+    
+    // 添加证书锁定拦截器
+    dio.interceptors.add(CertificatePinningInterceptor(
+      allowedSHAFingerprints: ['YOUR_CERTIFICATE_SHA_FINGERPRINT'],
+    ));
+    
+    return dio;
+  }
+}
+```
+
+## 18. 开发工具推荐
+### 必备VS Code插件
+- Flutter: Flutter开发支持
+- Dart: Dart语言支持
+- Flutter Widget Snippets: Widget代码片段
+- Awesome Flutter Snippets: Flutter代码片段
+- Flutter Tree: Widget树可视化
+
+### 调试工具
+- Flutter Inspector: Widget树查看
+- Performance: 性能分析
+- Network: 网络请求监控
+- Logs: 日志查看
+
+### 代码质量工具
+```bash
+# 代码格式化
+dart format .
+
+# 静态分析
+dart analyze
+
+# 测试覆盖率
+flutter test --coverage
+```

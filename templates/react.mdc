@@ -1,3 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
 # 来福哥的React开发规则
 
 ## 项目结构规范

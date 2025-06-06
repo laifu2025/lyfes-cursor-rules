@@ -1,0 +1,1197 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 来福哥的iOS开发规则
+
+**适用范围**: 基于iOS平台的原生移动应用开发  
+
+## 1. 框架概述
+
+### 1.1 iOS简介
+iOS是苹果公司开发的移动操作系统，具有以下核心特性：
+- 封闭生态系统，安全性高
+- Swift/Objective-C双语言支持
+- 统一的设计语言和用户体验
+- 强大的开发工具和框架
+- 严格的应用审核机制
+
+### 1.2 技术栈
+- **开发语言**: Swift (主推) / Objective-C
+- **UI框架**: UIKit / SwiftUI
+- **架构模式**: MVC / MVVM / VIPER
+- **依赖管理**: CocoaPods / Swift Package Manager / Carthage
+- **网络请求**: URLSession / Alamofire
+- **图片处理**: Kingfisher / SDWebImage
+- **数据存储**: Core Data / SQLite / UserDefaults
+- **异步处理**: GCD / Operation / Combine
+
+## 2. 项目结构规范
+```
+ProjectName/
+├── App/                            # 应用配置
+│   ├── AppDelegate.swift          # 应用委托
+│   ├── SceneDelegate.swift        # 场景委托
+│   └── Info.plist                 # 应用配置文件
+├── Sources/                       # 源代码目录
+│   ├── Models/                    # 数据模型
+│   ├── Views/                     # 视图层
+│   │   ├── Controllers/           # 视图控制器
+│   │   ├── Cells/                 # 自定义Cell
+│   │   └── CustomViews/           # 自定义视图
+│   ├── ViewModels/                # 视图模型
+│   ├── Services/                  # 服务层
+│   │   ├── Network/               # 网络服务
+│   │   ├── Storage/               # 存储服务
+│   │   └── Location/              # 定位服务
+│   └── Utils/                     # 工具类
+│       ├── Extensions/            # 扩展
+│       ├── Constants/             # 常量
+│       └── Helpers/               # 辅助工具
+├── Resources/                     # 资源文件
+│   ├── Assets.xcassets           # 图片资源
+│   ├── LaunchScreen.storyboard   # 启动页
+│   └── Localizable.strings       # 本地化文件
+└── Supporting Files/              # 支持文件
+    ├── Bridging-Header.h         # 桥接头文件
+    └── Podfile                   # CocoaPods依赖
+```
+
+## 3. 开发规范
+
+### 3.1 Swift代码风格规范
+### 命名规则
+```swift
+// ✅ 类名：使用PascalCase
+class UserProfileViewController: UIViewController {
+    // 类内容
+}
+
+// ✅ 属性、方法名：使用camelCase
+var userName: String = ""
+func getUserData() -> User? {
+    return nil
+}
+
+// ✅ 常量：使用camelCase
+let apiBaseURL = "https://api.example.com"
+private let maxRetryCount = 3
+
+// ✅ 枚举：使用PascalCase，枚举值用camelCase
+enum NetworkError {
+    case connectionTimeout
+    case serverError(Int)
+    case invalidResponse
+}
+
+// ✅ 协议：使用PascalCase，通常以able或ing结尾
+protocol UserDataDelegate: AnyObject {
+    func didLoadUserData(_ user: User)
+    func didFailWithError(_ error: Error)
+}
+```
+
+### 代码格式化
+```swift
+// ✅ 使用SwiftFormat格式化代码
+class UserService {
+    
+    private let networkManager: NetworkManager
+    private let userDefaults: UserDefaults
+    
+    init(networkManager: NetworkManager = .shared,
+         userDefaults: UserDefaults = .standard) {
+        self.networkManager = networkManager
+        self.userDefaults = userDefaults
+    }
+    
+    func fetchUser(withID id: String,
+                   completion: @escaping (Result<User, Error>) -> Void) {
+        let endpoint = "users/\(id)"
+        
+        networkManager.request(endpoint: endpoint) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let data):
+                    do {
+                        let user = try JSONDecoder().decode(User.self, from: data)
+                        completion(.success(user))
+                    } catch {
+                        completion(.failure(error))
+                    }
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            }
+        }
+    }
+}
+```
+
+### 3.2 UIViewController开发规范
+### 标准ViewController结构
+```swift
+// ✅ ViewController标准结构
+class UserProfileViewController: UIViewController {
+    
+    // MARK: - IBOutlets
+    @IBOutlet private weak var avatarImageView: UIImageView!
+    @IBOutlet private weak var nameLabel: UILabel!
+    @IBOutlet private weak var emailLabel: UILabel!
+    @IBOutlet private weak var editButton: UIButton!
+    
+    // MARK: - Properties
+    private var user: User?
+    private let userService = UserService()
+    private var activityIndicator: UIActivityIndicatorView!
+    
+    // MARK: - Lifecycle
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setupUI()
+        setupConstraints()
+        loadUserData()
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        navigationController?.setNavigationBarHidden(false, animated: true)
+    }
+    
+    // MARK: - UI Setup
+    private func setupUI() {
+        title = "用户资料"
+        view.backgroundColor = .systemBackground
+        
+        // 配置导航栏
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "编辑",
+            style: .plain,
+            target: self,
+            action: #selector(editButtonTapped)
+        )
+        
+        // 配置UI元素
+        avatarImageView.layer.cornerRadius = 50
+        avatarImageView.clipsToBounds = true
+        avatarImageView.contentMode = .scaleAspectFill
+        
+        nameLabel.font = UIFont.systemFont(ofSize: 24, weight: .bold)
+        emailLabel.font = UIFont.systemFont(ofSize: 16, weight: .regular)
+        emailLabel.textColor = .secondaryLabel
+        
+        setupActivityIndicator()
+    }
+    
+    private func setupActivityIndicator() {
+        activityIndicator = UIActivityIndicatorView(style: .large)
+        activityIndicator.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(activityIndicator)
+        
+        NSLayoutConstraint.activate([
+            activityIndicator.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            activityIndicator.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
+    }
+    
+    private func setupConstraints() {
+        // Auto Layout约束设置
+        // 建议使用SnapKit或手写约束
+    }
+    
+    // MARK: - Data Loading
+    private func loadUserData() {
+        showLoading(true)
+        
+        userService.fetchUser(withID: "current") { [weak self] result in
+            guard let self = self else { return }
+            
+            self.showLoading(false)
+            
+            switch result {
+            case .success(let user):
+                self.user = user
+                self.updateUI(with: user)
+            case .failure(let error):
+                self.showError(error)
+            }
+        }
+    }
+    
+    // MARK: - UI Updates
+    private func updateUI(with user: User) {
+        nameLabel.text = user.name
+        emailLabel.text = user.email
+        
+        // 加载头像
+        if let avatarURL = URL(string: user.avatarURL) {
+            loadImage(from: avatarURL) { [weak self] image in
+                self?.avatarImageView.image = image
+            }
+        }
+    }
+    
+    private func showLoading(_ show: Bool) {
+        if show {
+            activityIndicator.startAnimating()
+        } else {
+            activityIndicator.stopAnimating()
+        }
+    }
+    
+    private func showError(_ error: Error) {
+        let alert = UIAlertController(
+            title: "错误",
+            message: error.localizedDescription,
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: "确定", style: .default))
+        present(alert, animated: true)
+    }
+    
+    // MARK: - Actions
+    @objc private func editButtonTapped() {
+        guard let user = user else { return }
+        
+        let editVC = UserEditViewController(user: user)
+        editVC.delegate = self
+        let navController = UINavigationController(rootViewController: editVC)
+        present(navController, animated: true)
+    }
+    
+    // MARK: - Helper Methods
+    private func loadImage(from url: URL, completion: @escaping (UIImage?) -> Void) {
+        URLSession.shared.dataTask(with: url) { data, _, _ in
+            DispatchQueue.main.async {
+                if let data = data, let image = UIImage(data: data) {
+                    completion(image)
+                } else {
+                    completion(nil)
+                }
+            }
+        }.resume()
+    }
+}
+
+// MARK: - UserEditDelegate
+extension UserProfileViewController: UserEditDelegate {
+    func didUpdateUser(_ user: User) {
+        self.user = user
+        updateUI(with: user)
+    }
+}
+```
+
+## 4. MVVM架构规范
+### ViewModel实现
+```swift
+// ✅ ViewModel基础协议
+protocol ViewModelProtocol {
+    associatedtype Input
+    associatedtype Output
+    
+    func transform(input: Input) -> Output
+}
+
+// ✅ UserProfile ViewModel
+class UserProfileViewModel {
+    
+    // MARK: - Properties
+    private let userService: UserServiceProtocol
+    private let disposeBag = DisposeBag() // 如果使用RxSwift
+    
+    // MARK: - Outputs
+    let user = BehaviorRelay<User?>(value: nil)
+    let isLoading = BehaviorRelay<Bool>(value: false)
+    let error = PublishRelay<Error>()
+    
+    // MARK: - Inputs
+    let loadUser = PublishRelay<String>()
+    let updateUser = PublishRelay<User>()
+    
+    // MARK: - Init
+    init(userService: UserServiceProtocol = UserService()) {
+        self.userService = userService
+        setupBindings()
+    }
+    
+    // MARK: - Setup
+    private func setupBindings() {
+        // 加载用户数据
+        loadUser
+            .do(onNext: { [weak self] _ in
+                self?.isLoading.accept(true)
+            })
+            .flatMapLatest { [weak self] userID -> Observable<User> in
+                guard let self = self else { return .empty() }
+                return self.userService.fetchUser(withID: userID)
+                    .asObservable()
+                    .catch { error in
+                        self.error.accept(error)
+                        return .empty()
+                    }
+            }
+            .do(onNext: { [weak self] _ in
+                self?.isLoading.accept(false)
+            })
+            .bind(to: user)
+            .disposed(by: disposeBag)
+        
+        // 更新用户数据
+        updateUser
+            .do(onNext: { [weak self] _ in
+                self?.isLoading.accept(true)
+            })
+            .flatMapLatest { [weak self] user -> Observable<User> in
+                guard let self = self else { return .empty() }
+                return self.userService.updateUser(user)
+                    .asObservable()
+                    .catch { error in
+                        self.error.accept(error)
+                        return .empty()
+                    }
+            }
+            .do(onNext: { [weak self] _ in
+                self?.isLoading.accept(false)
+            })
+            .bind(to: user)
+            .disposed(by: disposeBag)
+    }
+}
+
+// ✅ ViewController中使用ViewModel
+class UserProfileViewController: UIViewController {
+    
+    private let viewModel = UserProfileViewModel()
+    private let disposeBag = DisposeBag()
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        setupBindings()
+        viewModel.loadUser.accept("current")
+    }
+    
+    private func setupBindings() {
+        // 绑定用户数据
+        viewModel.user
+            .compactMap { $0 }
+            .observe(on: MainScheduler.instance)
+            .subscribe(onNext: { [weak self] user in
+                self?.updateUI(with: user)
+            })
+            .disposed(by: disposeBag)
+        
+        // 绑定加载状态
+        viewModel.isLoading
+            .observe(on: MainScheduler.instance)
+            .subscribe(onNext: { [weak self] isLoading in
+                self?.showLoading(isLoading)
+            })
+            .disposed(by: disposeBag)
+        
+        // 绑定错误处理
+        viewModel.error
+            .observe(on: MainScheduler.instance)
+            .subscribe(onNext: { [weak self] error in
+                self?.showError(error)
+            })
+            .disposed(by: disposeBag)
+    }
+}
+```
+
+## 5. 数据模型规范
+### Model定义
+```swift
+// ✅ 基础模型协议
+protocol ModelProtocol: Codable, Equatable {
+    var id: String { get }
+}
+
+// ✅ 用户模型
+struct User: ModelProtocol {
+    let id: String
+    let name: String
+    let email: String
+    let avatarURL: String
+    let createdAt: Date
+    let updatedAt: Date
+    
+    // MARK: - CodingKeys
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case email
+        case avatarURL = "avatar_url"
+        case createdAt = "created_at"
+        case updatedAt = "updated_at"
+    }
+    
+    // MARK: - Init
+    init(id: String = UUID().uuidString,
+         name: String,
+         email: String,
+         avatarURL: String = "",
+         createdAt: Date = Date(),
+         updatedAt: Date = Date()) {
+        self.id = id
+        self.name = name
+        self.email = email
+        self.avatarURL = avatarURL
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+    
+    // MARK: - Custom Decoding
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        email = try container.decode(String.self, forKey: .email)
+        avatarURL = try container.decodeIfPresent(String.self, forKey: .avatarURL) ?? ""
+        
+        // 日期解析
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        
+        let createdAtString = try container.decode(String.self, forKey: .createdAt)
+        createdAt = dateFormatter.date(from: createdAtString) ?? Date()
+        
+        let updatedAtString = try container.decode(String.self, forKey: .updatedAt)
+        updatedAt = dateFormatter.date(from: updatedAtString) ?? Date()
+    }
+}
+
+// ✅ 响应模型
+struct APIResponse<T: Codable>: Codable {
+    let success: Bool
+    let message: String
+    let data: T?
+    let errorCode: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case success
+        case message
+        case data
+        case errorCode = "error_code"
+    }
+}
+
+// ✅ 分页模型
+struct PaginatedResponse<T: Codable>: Codable {
+    let items: [T]
+    let totalCount: Int
+    let currentPage: Int
+    let totalPages: Int
+    let hasNext: Bool
+    let hasPrevious: Bool
+    
+    enum CodingKeys: String, CodingKey {
+        case items
+        case totalCount = "total_count"
+        case currentPage = "current_page"
+        case totalPages = "total_pages"
+        case hasNext = "has_next"
+        case hasPrevious = "has_previous"
+    }
+}
+```
+
+## 6. 网络请求规范
+### 网络服务层
+```swift
+// ✅ 网络错误定义
+enum NetworkError: Error, LocalizedError {
+    case invalidURL
+    case noData
+    case decodingError
+    case serverError(Int)
+    case connectionTimeout
+    case unknown
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "无效的URL"
+        case .noData:
+            return "没有数据"
+        case .decodingError:
+            return "数据解析失败"
+        case .serverError(let code):
+            return "服务器错误: \(code)"
+        case .connectionTimeout:
+            return "连接超时"
+        case .unknown:
+            return "未知错误"
+        }
+    }
+}
+
+// ✅ 网络请求协议
+protocol NetworkManagerProtocol {
+    func request<T: Codable>(
+        endpoint: String,
+        method: HTTPMethod,
+        parameters: [String: Any]?,
+        responseType: T.Type
+    ) -> Single<T>
+}
+
+// ✅ 网络管理器实现
+class NetworkManager: NetworkManagerProtocol {
+    
+    static let shared = NetworkManager()
+    
+    private let session: URLSession
+    private let baseURL: String
+    
+    private init() {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 60
+        self.session = URLSession(configuration: config)
+        self.baseURL = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String ?? ""
+    }
+    
+    func request<T: Codable>(
+        endpoint: String,
+        method: HTTPMethod = .GET,
+        parameters: [String: Any]? = nil,
+        responseType: T.Type
+    ) -> Single<T> {
+        return Single.create { [weak self] single in
+            guard let self = self else {
+                single(.failure(NetworkError.unknown))
+                return Disposables.create()
+            }
+            
+            guard let url = URL(string: "\(self.baseURL)/\(endpoint)") else {
+                single(.failure(NetworkError.invalidURL))
+                return Disposables.create()
+            }
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = method.rawValue
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            // 添加认证头
+            if let token = UserDefaults.standard.string(forKey: "auth_token") {
+                request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            }
+            
+            // 添加参数
+            if let parameters = parameters {
+                do {
+                    request.httpBody = try JSONSerialization.data(withJSONObject: parameters)
+                } catch {
+                    single(.failure(error))
+                    return Disposables.create()
+                }
+            }
+            
+            let task = self.session.dataTask(with: request) { data, response, error in
+                if let error = error {
+                    single(.failure(error))
+                    return
+                }
+                
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    single(.failure(NetworkError.unknown))
+                    return
+                }
+                
+                guard 200...299 ~= httpResponse.statusCode else {
+                    single(.failure(NetworkError.serverError(httpResponse.statusCode)))
+                    return
+                }
+                
+                guard let data = data else {
+                    single(.failure(NetworkError.noData))
+                    return
+                }
+                
+                do {
+                    let decodedResponse = try JSONDecoder().decode(T.self, from: data)
+                    single(.success(decodedResponse))
+                } catch {
+                    single(.failure(NetworkError.decodingError))
+                }
+            }
+            
+            task.resume()
+            
+            return Disposables.create {
+                task.cancel()
+            }
+        }
+    }
+}
+
+// ✅ HTTP方法枚举
+enum HTTPMethod: String {
+    case GET = "GET"
+    case POST = "POST"
+    case PUT = "PUT"
+    case DELETE = "DELETE"
+    case PATCH = "PATCH"
+}
+```
+
+## 7. 数据存储规范
+### Core Data使用
+```swift
+// ✅ Core Data管理器
+class CoreDataManager {
+    
+    static let shared = CoreDataManager()
+    
+    private init() {}
+    
+    // MARK: - Core Data Stack
+    lazy var persistentContainer: NSPersistentContainer = {
+        let container = NSPersistentContainer(name: "DataModel")
+        container.loadPersistentStores { _, error in
+            if let error = error as NSError? {
+                fatalError("Core Data错误: \(error), \(error.userInfo)")
+            }
+        }
+        return container
+    }()
+    
+    var context: NSManagedObjectContext {
+        return persistentContainer.viewContext
+    }
+    
+    // MARK: - Save Context
+    func saveContext() {
+        let context = persistentContainer.viewContext
+        
+        if context.hasChanges {
+            do {
+                try context.save()
+            } catch {
+                let nsError = error as NSError
+                fatalError("保存失败: \(nsError), \(nsError.userInfo)")
+            }
+        }
+    }
+    
+    // MARK: - CRUD Operations
+    func create<T: NSManagedObject>(_ type: T.Type) -> T {
+        guard let entityName = T.entity().name else {
+            fatalError("无法获取实体名称")
+        }
+        
+        let entity = NSEntityDescription.entity(forEntityName: entityName, in: context)!
+        return T(entity: entity, insertInto: context)
+    }
+    
+    func fetch<T: NSManagedObject>(
+        _ type: T.Type,
+        predicate: NSPredicate? = nil,
+        sortDescriptors: [NSSortDescriptor]? = nil
+    ) -> [T] {
+        let request = NSFetchRequest<T>(entityName: String(describing: type))
+        request.predicate = predicate
+        request.sortDescriptors = sortDescriptors
+        
+        do {
+            return try context.fetch(request)
+        } catch {
+            print("获取数据失败: \(error)")
+            return []
+        }
+    }
+    
+    func delete<T: NSManagedObject>(_ object: T) {
+        context.delete(object)
+    }
+    
+    func deleteAll<T: NSManagedObject>(_ type: T.Type) {
+        let objects = fetch(type)
+        objects.forEach { context.delete($0) }
+    }
+}
+
+// ✅ UserDefaults扩展
+extension UserDefaults {
+    
+    enum Key: String {
+        case userID = "user_id"
+        case authToken = "auth_token"
+        case isFirstLaunch = "is_first_launch"
+        case themeMode = "theme_mode"
+    }
+    
+    var userID: String? {
+        get { string(forKey: Key.userID.rawValue) }
+        set { set(newValue, forKey: Key.userID.rawValue) }
+    }
+    
+    var authToken: String? {
+        get { string(forKey: Key.authToken.rawValue) }
+        set { set(newValue, forKey: Key.authToken.rawValue) }
+    }
+    
+    var isFirstLaunch: Bool {
+        get { bool(forKey: Key.isFirstLaunch.rawValue) }
+        set { set(newValue, forKey: Key.isFirstLaunch.rawValue) }
+    }
+    
+    var themeMode: String {
+        get { string(forKey: Key.themeMode.rawValue) ?? "system" }
+        set { set(newValue, forKey: Key.themeMode.rawValue) }
+    }
+    
+    func clearUserData() {
+        removeObject(forKey: Key.userID.rawValue)
+        removeObject(forKey: Key.authToken.rawValue)
+    }
+}
+```
+
+## 8. UI组件规范
+### 自定义视图
+```swift
+// ✅ 自定义Button
+@IBDesignable
+class CustomButton: UIButton {
+    
+    @IBInspectable var cornerRadius: CGFloat = 8 {
+        didSet {
+            layer.cornerRadius = cornerRadius
+        }
+    }
+    
+    @IBInspectable var borderWidth: CGFloat = 0 {
+        didSet {
+            layer.borderWidth = borderWidth
+        }
+    }
+    
+    @IBInspectable var borderColor: UIColor = .clear {
+        didSet {
+            layer.borderColor = borderColor.cgColor
+        }
+    }
+    
+    @IBInspectable var shadowRadius: CGFloat = 0 {
+        didSet {
+            layer.shadowRadius = shadowRadius
+        }
+    }
+    
+    @IBInspectable var shadowOpacity: Float = 0 {
+        didSet {
+            layer.shadowOpacity = shadowOpacity
+        }
+    }
+    
+    @IBInspectable var shadowOffset: CGSize = .zero {
+        didSet {
+            layer.shadowOffset = shadowOffset
+        }
+    }
+    
+    @IBInspectable var shadowColor: UIColor = .black {
+        didSet {
+            layer.shadowColor = shadowColor.cgColor
+        }
+    }
+    
+    override func awakeFromNib() {
+        super.awakeFromNib()
+        setupButton()
+    }
+    
+    override func prepareForInterfaceBuilder() {
+        super.prepareForInterfaceBuilder()
+        setupButton()
+    }
+    
+    private func setupButton() {
+        layer.masksToBounds = false
+        titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+    }
+}
+
+// ✅ 自定义TableViewCell
+class UserTableViewCell: UITableViewCell {
+    
+    // MARK: - IBOutlets
+    @IBOutlet private weak var avatarImageView: UIImageView!
+    @IBOutlet private weak var nameLabel: UILabel!
+    @IBOutlet private weak var emailLabel: UILabel!
+    @IBOutlet private weak var statusIndicator: UIView!
+    
+    // MARK: - Properties
+    static let identifier = "UserTableViewCell"
+    
+    // MARK: - Lifecycle
+    override func awakeFromNib() {
+        super.awakeFromNib()
+        setupUI()
+    }
+    
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        avatarImageView.image = nil
+        nameLabel.text = nil
+        emailLabel.text = nil
+    }
+    
+    // MARK: - Setup
+    private func setupUI() {
+        // 头像设置
+        avatarImageView.layer.cornerRadius = 25
+        avatarImageView.clipsToBounds = true
+        avatarImageView.contentMode = .scaleAspectFill
+        
+        // 状态指示器
+        statusIndicator.layer.cornerRadius = 5
+        statusIndicator.backgroundColor = .systemGreen
+        
+        // 标签样式
+        nameLabel.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        emailLabel.font = UIFont.systemFont(ofSize: 14, weight: .regular)
+        emailLabel.textColor = .secondaryLabel
+    }
+    
+    // MARK: - Configuration
+    func configure(with user: User) {
+        nameLabel.text = user.name
+        emailLabel.text = user.email
+        
+        // 加载头像
+        if let url = URL(string: user.avatarURL) {
+            loadImage(from: url)
+        } else {
+            avatarImageView.image = UIImage(systemName: "person.circle.fill")
+        }
+        
+        // 设置在线状态
+        statusIndicator.backgroundColor = user.isOnline ? .systemGreen : .systemGray
+    }
+    
+    private func loadImage(from url: URL) {
+        // 使用Kingfisher或SDWebImage加载图片
+        // avatarImageView.kf.setImage(with: url, placeholder: UIImage(systemName: "person.circle.fill"))
+    }
+}
+```
+
+## 9. 扩展和工具类
+### 常用扩展
+```swift
+// ✅ UIView扩展
+extension UIView {
+    
+    @IBInspectable var cornerRadius: CGFloat {
+        get { layer.cornerRadius }
+        set {
+            layer.cornerRadius = newValue
+            layer.masksToBounds = newValue > 0
+        }
+    }
+    
+    @IBInspectable var borderWidth: CGFloat {
+        get { layer.borderWidth }
+        set { layer.borderWidth = newValue }
+    }
+    
+    @IBInspectable var borderColor: UIColor? {
+        get {
+            guard let color = layer.borderColor else { return nil }
+            return UIColor(cgColor: color)
+        }
+        set { layer.borderColor = newValue?.cgColor }
+    }
+    
+    func addShadow(
+        color: UIColor = .black,
+        opacity: Float = 0.1,
+        offset: CGSize = CGSize(width: 0, height: 2),
+        radius: CGFloat = 4
+    ) {
+        layer.shadowColor = color.cgColor
+        layer.shadowOpacity = opacity
+        layer.shadowOffset = offset
+        layer.shadowRadius = radius
+        layer.masksToBounds = false
+    }
+    
+    func fadeIn(duration: TimeInterval = 0.3) {
+        alpha = 0
+        UIView.animate(withDuration: duration) {
+            self.alpha = 1
+        }
+    }
+    
+    func fadeOut(duration: TimeInterval = 0.3) {
+        UIView.animate(withDuration: duration) {
+            self.alpha = 0
+        }
+    }
+}
+
+// ✅ String扩展
+extension String {
+    
+    var isValidEmail: Bool {
+        let emailRegEx = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
+        let emailPred = NSPredicate(format:"SELF MATCHES %@", emailRegEx)
+        return emailPred.evaluate(with: self)
+    }
+    
+    var isValidPhone: Bool {
+        let phoneRegex = "^1[3-9]\\d{9}$"
+        let phonePred = NSPredicate(format: "SELF MATCHES %@", phoneRegex)
+        return phonePred.evaluate(with: self)
+    }
+    
+    func localized() -> String {
+        return NSLocalizedString(self, comment: "")
+    }
+    
+    func toDate(format: String = "yyyy-MM-dd HH:mm:ss") -> Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = format
+        return formatter.date(from: self)
+    }
+}
+
+// ✅ Date扩展
+extension Date {
+    
+    func toString(format: String = "yyyy-MM-dd HH:mm:ss") -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = format
+        return formatter.string(from: self)
+    }
+    
+    func timeAgo() -> String {
+        let interval = Date().timeIntervalSince(self)
+        
+        if interval < 60 {
+            return "刚刚"
+        } else if interval < 3600 {
+            return "\(Int(interval / 60))分钟前"
+        } else if interval < 86400 {
+            return "\(Int(interval / 3600))小时前"
+        } else if interval < 2592000 {
+            return "\(Int(interval / 86400))天前"
+        } else {
+            return toString(format: "yyyy-MM-dd")
+        }
+    }
+}
+
+// ✅ UIViewController扩展
+extension UIViewController {
+    
+    func showAlert(
+        title: String,
+        message: String,
+        actions: [UIAlertAction] = [UIAlertAction(title: "确定", style: .default)]
+    ) {
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        actions.forEach { alert.addAction($0) }
+        present(alert, animated: true)
+    }
+    
+    func showLoading() {
+        let alert = UIAlertController(title: nil, message: "加载中...", preferredStyle: .alert)
+        let loadingIndicator = UIActivityIndicatorView(frame: CGRect(x: 10, y: 5, width: 50, height: 50))
+        loadingIndicator.hidesWhenStopped = true
+        loadingIndicator.style = .medium
+        loadingIndicator.startAnimating()
+        alert.setValue(loadingIndicator, forKey: "accessoryView")
+        present(alert, animated: true)
+    }
+    
+    func hideKeyboardWhenTappedAround() {
+        let tap = UITapGestureRecognizer(target: self, action: #selector(dismissKeyboard))
+        tap.cancelsTouchesInView = false
+        view.addGestureRecognizer(tap)
+    }
+    
+    @objc private func dismissKeyboard() {
+        view.endEditing(true)
+    }
+}
+```
+
+## 10. 测试规范
+### 单元测试
+```swift
+// ✅ UserService测试
+import XCTest
+@testable import MyApp
+
+class UserServiceTests: XCTestCase {
+    
+    var userService: UserService!
+    var mockNetworkManager: MockNetworkManager!
+    
+    override func setUp() {
+        super.setUp()
+        mockNetworkManager = MockNetworkManager()
+        userService = UserService(networkManager: mockNetworkManager)
+    }
+    
+    override func tearDown() {
+        userService = nil
+        mockNetworkManager = nil
+        super.tearDown()
+    }
+    
+    func testFetchUserSuccess() {
+        // Arrange
+        let expectedUser = User(name: "测试用户", email: "test@example.com")
+        mockNetworkManager.mockResult = .success(expectedUser)
+        
+        let expectation = XCTestExpectation(description: "获取用户成功")
+        
+        // Act
+        userService.fetchUser(withID: "123") { result in
+            // Assert
+            switch result {
+            case .success(let user):
+                XCTAssertEqual(user.name, "测试用户")
+                XCTAssertEqual(user.email, "test@example.com")
+                expectation.fulfill()
+            case .failure:
+                XCTFail("应该成功获取用户")
+            }
+        }
+        
+        wait(for: [expectation], timeout: 1.0)
+    }
+    
+    func testFetchUserFailure() {
+        // Arrange
+        mockNetworkManager.mockResult = .failure(NetworkError.serverError(500))
+        
+        let expectation = XCTestExpectation(description: "获取用户失败")
+        
+        // Act
+        userService.fetchUser(withID: "123") { result in
+            // Assert
+            switch result {
+            case .success:
+                XCTFail("应该失败")
+            case .failure(let error):
+                XCTAssertTrue(error is NetworkError)
+                expectation.fulfill()
+            }
+        }
+        
+        wait(for: [expectation], timeout: 1.0)
+    }
+}
+
+// ✅ Mock对象
+class MockNetworkManager: NetworkManagerProtocol {
+    var mockResult: Result<Any, Error>?
+    
+    func request<T: Codable>(
+        endpoint: String,
+        method: HTTPMethod,
+        parameters: [String: Any]?,
+        responseType: T.Type
+    ) -> Single<T> {
+        return Single.create { single in
+            if let result = self.mockResult {
+                switch result {
+                case .success(let data):
+                    if let typedData = data as? T {
+                        single(.success(typedData))
+                    } else {
+                        single(.failure(NetworkError.decodingError))
+                    }
+                case .failure(let error):
+                    single(.failure(error))
+                }
+            } else {
+                single(.failure(NetworkError.unknown))
+            }
+            
+            return Disposables.create()
+        }
+    }
+}
+```
+
+### UI测试
+```swift
+// ✅ UI测试
+import XCTest
+
+class UserProfileUITests: XCTestCase {
+    
+    var app: XCUIApplication!
+    
+    override func setUp() {
+        super.setUp()
+        continueAfterFailure = false
+        app = XCUIApplication()
+        app.launch()
+    }
+    
+    func testUserProfileDisplay() {
+        // 导航到用户资料页面
+        app.tabBars.buttons["用户"].tap()
+        
+        // 验证页面元素存在
+        XCTAssertTrue(app.navigationBars["用户资料"].exists)
+        XCTAssertTrue(app.images["头像"].exists)
+        XCTAssertTrue(app.staticTexts["用户名"].exists)
+        XCTAssertTrue(app.staticTexts["邮箱"].exists)
+        XCTAssertTrue(app.buttons["编辑"].exists)
+    }
+    
+    func testEditUserProfile() {
+        // 导航到编辑页面
+        app.tabBars.buttons["用户"].tap()
+        app.buttons["编辑"].tap()
+        
+        // 修改用户信息
+        let nameField = app.textFields["用户名"]
+        nameField.tap()
+        nameField.clearAndEnterText("新用户名")
+        
+        // 保存更改
+        app.buttons["保存"].tap()
+        
+        // 验证更改已保存
+        XCTAssertTrue(app.staticTexts["新用户名"].exists)
+    }
+}
+
+// ✅ XCUIElement扩展
+extension XCUIElement {
+    func clearAndEnterText(_ text: String) {
+        guard let stringValue = self.value as? String else {
+            XCTFail("无法获取文本字段的值")
+            return
+        }
+        
+        let deleteString = String(repeating: XCUIKeyboardKey.delete.rawValue, count: stringValue.count)
+        typeText(deleteString)
+        typeText(text)
+    }
+}
+```
+
+这个iOS开发规则模板涵盖了：
+- 项目结构规范
+- Swift代码风格
+- MVVM架构实现
+- 网络请求和数据存储
+- UI组件开发
+- 扩展和工具类
+- 测试规范
+
+它遵循了iOS开发的最佳实践，包含详细的代码示例，可以帮助开发者快速上手iOS项目开发。

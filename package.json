@@ -7,7 +7,7 @@
     "icon": "icon.png",
     "repository": {
         "type": "git",
-        "url": "https://github.com/laifuge/cursor-rules-extension"
+        "url": "https://github.com/laifuge/laifuge-cursor-rules"
     },
     "engines": {
         "vscode": "^1.74.0"
@@ -33,12 +33,32 @@
         "commands": [
             {
                 "command": "laifuge-cursor-rules.addCursorRules",
-                "title": "添加 .cursorrules 文件",
+                "title": "添加 Cursor 规则文件",
                 "category": "来福哥"
             },
             {
                 "command": "laifuge-cursor-rules.listRules",
                 "title": "查看所有规则模板",
+                "category": "来福哥"
+            },
+            {
+                "command": "laifuge-cursor-rules.addWebRules",
+                "title": "Web前端开发规则",
+                "category": "来福哥"
+            },
+            {
+                "command": "laifuge-cursor-rules.addMobileRules",
+                "title": "移动应用开发规则",
+                "category": "来福哥"
+            },
+            {
+                "command": "laifuge-cursor-rules.addBackendRules",
+                "title": "后端服务开发规则",
+                "category": "来福哥"
+            },
+            {
+                "command": "laifuge-cursor-rules.addGeneralRules",
+                "title": "通用开发规则",
                 "category": "来福哥"
             }
         ],
@@ -47,6 +67,32 @@
                 {
                     "command": "laifuge-cursor-rules.addCursorRules",
                     "group": "navigation"
+                }
+            ],
+            "commandPalette": [
+                {
+                    "command": "laifuge-cursor-rules.addCursorRules",
+                    "when": "workbenchState != empty"
+                },
+                {
+                    "command": "laifuge-cursor-rules.addWebRules",
+                    "when": "workbenchState != empty"
+                },
+                {
+                    "command": "laifuge-cursor-rules.addMobileRules",
+                    "when": "workbenchState != empty"
+                },
+                {
+                    "command": "laifuge-cursor-rules.addBackendRules",
+                    "when": "workbenchState != empty"
+                },
+                {
+                    "command": "laifuge-cursor-rules.addGeneralRules",
+                    "when": "workbenchState != empty"
+                },
+                {
+                    "command": "laifuge-cursor-rules.listRules",
+                    "when": "workbenchState != empty"
                 }
             ]
         }
@@ -69,8 +115,5 @@
         "@vscode/vsce": "^3.5.0",
         "eslint": "^8.28.0",
         "typescript": "^4.9.4"
-    },
-    "dependencies": {
-        "fs-extra": "^11.1.0"
     }
 }
