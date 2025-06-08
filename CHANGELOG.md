@@ -352,6 +352,6 @@
 ## 反馈和建议
 
 如果你有任何建议或发现了问题，欢迎：
-- 📝 提交[Issue](https://github.com/laifuge/cursor-rules/issues)
-- 🔧 提交[Pull Request](https://github.com/laifuge/cursor-rules/pulls)
-- 💬 在[Discussions](https://github.com/laifuge/cursor-rules/discussions)中讨论
+- 📝 提交[Issue](https://github.com/laifu2025/lyfes-cursor-rules/issues)
+- 🔧 提交[Pull Request](https://github.com/laifu2025/lyfes-cursor-rules/pulls)
+- 💬 在[Discussions](https://github.com/laifu2025/lyfes-cursor-rules/discussions)中讨论

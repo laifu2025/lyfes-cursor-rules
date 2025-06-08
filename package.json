@@ -1,13 +1,13 @@
 {
-    "name": "laifuge-cursor-rules",
+    "name": "lyfes-cursor-rules",
     "displayName": "Lyfe's Cursor Rules",
     "description": "为Cursor提供中文优化的Cursor Rules模板集合，提升AI编程体验",
-    "version": "1.0.1",
-    "publisher": "laifuge",
+    "version": "1.1.0",
+    "publisher": "lyfe",
     "icon": "icon.png",
     "repository": {
         "type": "git",
-        "url": "https://github.com/laifuge/laifuge-cursor-rules"
+        "url": "https://github.com/laifu2025/lyfes-cursor-rules"
     },
     "engines": {
         "vscode": "^1.74.0"
@@ -32,32 +32,32 @@
     "contributes": {
         "commands": [
             {
-                "command": "laifuge-cursor-rules.addCursorRules",
+                "command": "lyfes-cursor-rules.addCursorRules",
                 "title": "添加 Cursor 规则文件",
                 "category": "Lyfe"
             },
             {
-                "command": "laifuge-cursor-rules.listRules",
+                "command": "lyfes-cursor-rules.listRules",
                 "title": "查看所有规则模板",
                 "category": "Lyfe"
             },
             {
-                "command": "laifuge-cursor-rules.addWebRules",
+                "command": "lyfes-cursor-rules.addWebRules",
                 "title": "Web前端开发规则",
                 "category": "Lyfe"
             },
             {
-                "command": "laifuge-cursor-rules.addMobileRules",
+                "command": "lyfes-cursor-rules.addMobileRules",
                 "title": "移动应用开发规则",
                 "category": "Lyfe"
             },
             {
-                "command": "laifuge-cursor-rules.addBackendRules",
+                "command": "lyfes-cursor-rules.addBackendRules",
                 "title": "后端服务开发规则",
                 "category": "Lyfe"
             },
             {
-                "command": "laifuge-cursor-rules.addGeneralRules",
+                "command": "lyfes-cursor-rules.addGeneralRules",
                 "title": "通用开发规则",
                 "category": "Lyfe"
             }
@@ -65,33 +65,33 @@
         "menus": {
             "explorer/context": [
                 {
-                    "command": "laifuge-cursor-rules.addCursorRules",
+                    "command": "lyfes-cursor-rules.addCursorRules",
                     "group": "navigation"
                 }
             ],
             "commandPalette": [
                 {
-                    "command": "laifuge-cursor-rules.addCursorRules",
+                    "command": "lyfes-cursor-rules.addCursorRules",
                     "when": "workbenchState != empty"
                 },
                 {
-                    "command": "laifuge-cursor-rules.addWebRules",
+                    "command": "lyfes-cursor-rules.addWebRules",
                     "when": "workbenchState != empty"
                 },
                 {
-                    "command": "laifuge-cursor-rules.addMobileRules",
+                    "command": "lyfes-cursor-rules.addMobileRules",
                     "when": "workbenchState != empty"
                 },
                 {
-                    "command": "laifuge-cursor-rules.addBackendRules",
+                    "command": "lyfes-cursor-rules.addBackendRules",
                     "when": "workbenchState != empty"
                 },
                 {
-                    "command": "laifuge-cursor-rules.addGeneralRules",
+                    "command": "lyfes-cursor-rules.addGeneralRules",
                     "when": "workbenchState != empty"
                 },
                 {
-                    "command": "laifuge-cursor-rules.listRules",
+                    "command": "lyfes-cursor-rules.listRules",
                     "when": "workbenchState != empty"
                 }
             ]

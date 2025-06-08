@@ -4,7 +4,7 @@
 1. 访问 [GitHub](https://github.com)
 2. 点击右上角的 `+` 号，选择 `New repository`
 3. 填写仓库信息：
-   - **Repository name**: `laifuge-cursor-rules`
+   - **Repository name**: `lyfes-cursor-rules`
    - **Description**: `🚀 Lyfe's Cursor Rules - 专为中文开发者设计的Cursor Rules模板集合，包含9个精心设计的规则模板，帮助提升AI编程效率`
    - **Visibility**: 选择 `Public`
    - **不要勾选** `Add a README file`（因为我们已经有了）
@@ -17,7 +17,7 @@
 
 ```bash
 # 添加远程仓库地址
-git remote add origin https://github.com/你的用户名/laifuge-cursor-rules.git
+git remote add origin https://github.com/你的用户名/lyfes-cursor-rules.git
 
 # 推送代码到GitHub
 git branch -M main
@@ -59,12 +59,12 @@ git push -u origin main
      - ⚡ FastAdmin/ThinkPHP规则
 
      ## 📥 安装方式
-     1. 下载 `laifuge-cursor-rules-1.0.0.vsix` 文件
+     1. 下载 `lyfes-cursor-rules-1.0.0.vsix` 文件
      2. 在VS Code中按 Ctrl+Shift+P
      3. 输入 "Extensions: Install from VSIX"
      4. 选择下载的文件安装
      ```
-4. 上传 `laifuge-cursor-rules-1.0.0.vsix` 文件作为发布资产
+4. 上传 `lyfes-cursor-rules-1.0.0.vsix` 文件作为发布资产
 5. 点击 `Publish release`
 
 ## 当前本地仓库状态
@@ -78,7 +78,7 @@ git push -u origin main
 ## 推送命令（请替换你的GitHub用户名）
 
 ```bash
-git remote add origin https://github.com/你的用户名/laifuge-cursor-rules.git
+git remote add origin https://github.com/你的用户名/lyfes-cursor-rules.git
 git branch -M main
 git push -u origin main
 ``` 

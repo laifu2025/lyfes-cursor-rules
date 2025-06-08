@@ -7,10 +7,10 @@ echo "🚀 开始发布Lyfe's Cursor Rules扩展..."
 
 # 检查是否已登录
 echo "📋 检查发布者登录状态..."
-if ! npx vsce ls-publishers | grep -q "laifuge"; then
+if ! npx vsce ls-publishers | grep -q "lyfe"; then
     echo "❌ 未检测到发布者登录"
     echo "请先执行以下命令登录："
-    echo "npx vsce login laifuge"
+    echo "npx vsce login lyfe"
     echo "然后输入您的PAT令牌"
     exit 1
 fi

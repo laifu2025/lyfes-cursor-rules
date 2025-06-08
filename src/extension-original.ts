@@ -41,12 +41,12 @@ export function activate(context: vscode.ExtensionContext) {
     console.log('Lyfe\'s Cursor Rules插件已激活');
 
     // 注册添加规则命令
-    let addRulesCommand = vscode.commands.registerCommand('laifuge-cursor-rules.addCursorRules', async () => {
+    let addRulesCommand = vscode.commands.registerCommand('lyfes-cursor-rules.addCursorRules', async () => {
         await addCursorRules(context);
     });
 
     // 注册查看规则列表命令
-    let listRulesCommand = vscode.commands.registerCommand('laifuge-cursor-rules.listRules', async () => {
+    let listRulesCommand = vscode.commands.registerCommand('lyfes-cursor-rules.listRules', async () => {
         await listAllRules(context);
     });
 

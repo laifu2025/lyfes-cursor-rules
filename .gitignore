@@ -6,4 +6,4 @@ node_modules
 .DS_Store
 .idea
 # 保留发布文件
-!laifuge-cursor-rules-*.vsix
+!s-*.vsix

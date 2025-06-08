@@ -504,29 +504,29 @@ export function activate(context: vscode.ExtensionContext) {
     Logger.info(`${EXTENSION_NAME}插件已激活`);
 
     // 注册主命令
-    let addRulesCommand = vscode.commands.registerCommand('laifuge-cursor-rules.addCursorRules', async () => {
+    let addRulesCommand = vscode.commands.registerCommand('lyfes-cursor-rules.addCursorRules', async () => {
         await addCursorRules(context);
     });
 
     // 注册查看规则列表命令
-    let listRulesCommand = vscode.commands.registerCommand('laifuge-cursor-rules.listRules', async () => {
+    let listRulesCommand = vscode.commands.registerCommand('lyfes-cursor-rules.listRules', async () => {
         await listAllRules(context);
     });
 
     // 注册分类快速命令
-    let addWebRulesCommand = vscode.commands.registerCommand('laifuge-cursor-rules.addWebRules', async () => {
+    let addWebRulesCommand = vscode.commands.registerCommand('lyfes-cursor-rules.addWebRules', async () => {
         await addCategoryRules(context, '$(globe) Web前端开发');
     });
 
-    let addMobileRulesCommand = vscode.commands.registerCommand('laifuge-cursor-rules.addMobileRules', async () => {
+    let addMobileRulesCommand = vscode.commands.registerCommand('lyfes-cursor-rules.addMobileRules', async () => {
         await addCategoryRules(context, '$(device-mobile) 移动应用开发');
     });
 
-    let addBackendRulesCommand = vscode.commands.registerCommand('laifuge-cursor-rules.addBackendRules', async () => {
+    let addBackendRulesCommand = vscode.commands.registerCommand('lyfes-cursor-rules.addBackendRules', async () => {
         await addCategoryRules(context, '$(server) 后端服务开发');
     });
 
-    let addGeneralRulesCommand = vscode.commands.registerCommand('laifuge-cursor-rules.addGeneralRules', async () => {
+    let addGeneralRulesCommand = vscode.commands.registerCommand('lyfes-cursor-rules.addGeneralRules', async () => {
         await addCategoryRules(context, '$(star) 通用规则');
     });
 

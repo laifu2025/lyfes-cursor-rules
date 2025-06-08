@@ -27,11 +27,11 @@ export function activate(context: vscode.ExtensionContext) {
 
     // 调试信息
     vscode.window.showInformationMessage('🎉 Lyfe\'s Cursor Rules插件已激活！点击确定后将自动弹出选择菜单进行测试。', '确定').then(() => {
-        vscode.commands.executeCommand('laifuge-cursor-rules.addCursorRules');
+        vscode.commands.executeCommand('lyfes-cursor-rules.addCursorRules');
     });
 
     // 注册添加规则命令
-    let addRulesCommand = vscode.commands.registerCommand('laifuge-cursor-rules.addCursorRules', async () => {
+    let addRulesCommand = vscode.commands.registerCommand('lyfes-cursor-rules.addCursorRules', async () => {
         await addCursorRules(context);
     });
 
