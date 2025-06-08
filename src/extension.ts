@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // 常量定义
-const EXTENSION_NAME = '来福哥的Cursor Rules';
+const EXTENSION_NAME = 'Lyfe\'s Cursor Rules';
 const TEMPLATE_FILE_EXTENSION = '.mdc';
 const SUPPORTED_ENCODINGS = ['utf8'] as const;
 
@@ -963,7 +963,7 @@ async function listAllRules(context: vscode.ExtensionContext) {
  * @returns 格式化的Markdown内容
  */
 function generateRulesOverview(): string {
-    let content = `# 来福哥的Cursor Rules模板集合\n\n`;
+            let content = `# Lyfe's Cursor Rules模板集合\n\n`;
     content += `> 这是一个为中文开发者优化的Cursor Rules模板集合\n\n`;
     
     ruleTemplates.forEach((template, index) => {
@@ -987,7 +987,7 @@ function generateRulesOverview(): string {
     
     content += `## 使用方法\n\n`;
     content += `1. 使用命令面板（Ctrl+Shift+P / Cmd+Shift+P）\n`;
-    content += `2. 输入"来福哥"或"添加 Cursor 规则文件"\n`;
+            content += `2. 输入"Lyfe"或"添加 Cursor 规则文件"\n`;
     content += `3. 选择适合你项目的规则模板\n`;
     content += `4. 规则文件将自动添加到项目根目录\n\n`;
     content += `## 自定义规则\n\n`;

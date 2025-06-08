@@ -1,6 +1,6 @@
 {
     "name": "laifuge-cursor-rules",
-    "displayName": "来福哥的Cursor Rules",
+    "displayName": "Lyfe's Cursor Rules",
     "description": "为Cursor提供中文优化的Cursor Rules模板集合，提升AI编程体验",
     "version": "1.0.1",
     "publisher": "laifuge",
@@ -34,32 +34,32 @@
             {
                 "command": "laifuge-cursor-rules.addCursorRules",
                 "title": "添加 Cursor 规则文件",
-                "category": "来福哥"
+                "category": "Lyfe"
             },
             {
                 "command": "laifuge-cursor-rules.listRules",
                 "title": "查看所有规则模板",
-                "category": "来福哥"
+                "category": "Lyfe"
             },
             {
                 "command": "laifuge-cursor-rules.addWebRules",
                 "title": "Web前端开发规则",
-                "category": "来福哥"
+                "category": "Lyfe"
             },
             {
                 "command": "laifuge-cursor-rules.addMobileRules",
                 "title": "移动应用开发规则",
-                "category": "来福哥"
+                "category": "Lyfe"
             },
             {
                 "command": "laifuge-cursor-rules.addBackendRules",
                 "title": "后端服务开发规则",
-                "category": "来福哥"
+                "category": "Lyfe"
             },
             {
                 "command": "laifuge-cursor-rules.addGeneralRules",
                 "title": "通用开发规则",
-                "category": "来福哥"
+                "category": "Lyfe"
             }
         ],
         "menus": {

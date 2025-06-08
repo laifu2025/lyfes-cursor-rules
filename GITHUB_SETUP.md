@@ -1,4 +1,3 @@
-# GitHub仓库创建指南
 
 ## 步骤1：在GitHub上创建仓库
 
@@ -6,7 +5,7 @@
 2. 点击右上角的 `+` 号，选择 `New repository`
 3. 填写仓库信息：
    - **Repository name**: `laifuge-cursor-rules`
-   - **Description**: `🚀 来福哥的Cursor Rules - 专为中文开发者设计的Cursor Rules模板集合，包含9个精心设计的规则模板，帮助提升AI编程效率`
+   - **Description**: `🚀 Lyfe's Cursor Rules - 专为中文开发者设计的Cursor Rules模板集合，包含9个精心设计的规则模板，帮助提升AI编程效率`
    - **Visibility**: 选择 `Public`
    - **不要勾选** `Add a README file`（因为我们已经有了）
    - **不要勾选** `Add .gitignore`（我们已经有了）
@@ -39,7 +38,7 @@ git push -u origin main
 2. 点击 `Create a new release`
 3. 填写：
    - **Tag version**: `v1.0.0`
-   - **Release title**: `🎉 来福哥的Cursor Rules v1.0.0 首次发布`
+   - **Release title**: `🎉 Lyfe's Cursor Rules v1.0.0 首次发布`
    - **Description**: 
      ```
      ## ✨ 特性

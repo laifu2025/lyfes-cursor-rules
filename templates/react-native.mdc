@@ -3,7 +3,7 @@ description:
 globs: 
 alwaysApply: false
 ---
-# 来福哥的React Native开发规则
+# Lyfe's React Native开发规则
 
 **适用范围**: 基于React Native的跨平台移动应用开发  
 

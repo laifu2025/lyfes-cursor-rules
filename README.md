@@ -1,4 +1,4 @@
-# 来福哥的Cursor Rules 🚀
+# Lyfe's Cursor Rules 🚀
 
 一个专为中文开发者设计的Cursor Rules模板集合，帮助你快速为项目添加高质量的AI编程规则。
 
@@ -14,13 +14,13 @@
 
 ### 安装插件
 1. 在Cursor中打开扩展面板（Cmd+Shift+X）
-2. 搜索"来福哥的Cursor Rules"
+2. 搜索"Lyfe's Cursor Rules"
 3. 点击安装
 
 ### 添加规则到项目
 1. 打开你的项目文件夹
 2. 使用命令面板（Ctrl+Shift+P / Cmd+Shift+P）
-3. 输入"添加 Cursor 规则文件"或"来福哥"
+3. 输入"添加 Cursor 规则文件"或"Lyfe"
 4. 选择适合你项目的规则模板
 5. 规则文件将自动添加到项目的 `.cursor/rules/` 目录下（如果目录不存在会自动创建）
 
@@ -31,8 +31,8 @@
 
 ## 📋 命令列表
 
-- `来福哥: 添加 Cursor 规则文件` - 添加规则模板到当前项目
-- `来福哥: 查看所有规则模板` - 查看所有可用模板的详细信息
+- `Lyfe: 添加 Cursor 规则文件` - 添加规则模板到当前项目
+- `Lyfe: 查看所有规则模板` - 查看所有可用模板的详细信息
 
 ## 🎯 为什么使用Cursor Rules？
 
@@ -275,7 +275,8 @@ Chrome浏览器扩展开发的最佳实践，包括：
 **🔗 相关链接**:
 - [Cursor官网](https://cursor.sh/)
 - [VS Code扩展开发文档](https://code.visualstudio.com/api)
+- [项目地址](https://github.com/laifu2025/lyfes-cursor-rules)
 
 ---
 
-Made with ❤️ by 来福哥
+Made with ❤️ by Lyfe

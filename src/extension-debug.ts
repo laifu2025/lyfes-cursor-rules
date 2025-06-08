@@ -23,10 +23,10 @@ const ruleTemplates: RuleTemplate[] = [
 ];
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('来福哥的Cursor Rules插件已激活');
+    console.log('Lyfe\'s Cursor Rules插件已激活');
 
     // 调试信息
-    vscode.window.showInformationMessage('🎉 来福哥的Cursor Rules插件已激活！点击确定后将自动弹出选择菜单进行测试。', '确定').then(() => {
+    vscode.window.showInformationMessage('🎉 Lyfe\'s Cursor Rules插件已激活！点击确定后将自动弹出选择菜单进行测试。', '确定').then(() => {
         vscode.commands.executeCommand('laifuge-cursor-rules.addCursorRules');
     });
 
@@ -99,7 +99,7 @@ async function addCursorRules(context: vscode.ExtensionContext) {
 
         // 直接写入一个简单的测试内容
         const targetPath = path.join(workspaceRoot, '.cursorrules');
-        const testContent = `# ${selected.template.name}\n\n这是一个测试内容，来自来福哥的Cursor Rules插件。\n\n选择的模板: ${selected.template.filename}\n创建时间: ${new Date().toLocaleString()}`;
+        const testContent = `# ${selected.template.name}\n\n这是一个测试内容，来自Lyfe's Cursor Rules插件。\n\n选择的模板: ${selected.template.filename}\n创建时间: ${new Date().toLocaleString()}`;
         
         fs.writeFileSync(targetPath, testContent, 'utf8');
         
@@ -123,5 +123,5 @@ async function addCursorRules(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
-    console.log('来福哥的Cursor Rules插件已停用');
+    console.log('Lyfe\'s Cursor Rules插件已停用');
 }

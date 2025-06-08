@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# 来福哥的Cursor Rules - 发布脚本
+# Lyfe's Cursor Rules - 发布脚本
 # 使用方法: bash scripts/publish.sh
 
-echo "🚀 开始发布来福哥的Cursor Rules扩展..."
+echo "🚀 开始发布Lyfe's Cursor Rules扩展..."
 
 # 检查是否已登录
 echo "📋 检查发布者登录状态..."
@@ -32,4 +32,4 @@ echo "🚀 发布到VS Code Marketplace..."
 npx vsce publish
 
 echo "✅ 发布完成！"
-echo "🎉 用户现在可以在VS Code中搜索'来福哥的Cursor Rules'来安装您的扩展了！" 
+echo "🎉 用户现在可以在VS Code中搜索'Lyfe's Cursor Rules'来安装您的扩展了！" 

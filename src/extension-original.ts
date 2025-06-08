@@ -38,7 +38,7 @@ const ruleTemplates: RuleTemplate[] = [
 ];
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('来福哥的Cursor Rules插件已激活');
+    console.log('Lyfe\'s Cursor Rules插件已激活');
 
     // 注册添加规则命令
     let addRulesCommand = vscode.commands.registerCommand('laifuge-cursor-rules.addCursorRules', async () => {
@@ -53,7 +53,7 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(addRulesCommand, listRulesCommand);
 
     // 显示欢迎信息
-    vscode.window.showInformationMessage('🎉 来福哥的Cursor Rules插件已准备就绪！');
+    vscode.window.showInformationMessage('🎉 Lyfe\'s Cursor Rules插件已准备就绪！');
 }
 
 async function addCursorRules(context: vscode.ExtensionContext) {
@@ -161,7 +161,7 @@ async function listAllRules(context: vscode.ExtensionContext) {
 }
 
 function generateRulesOverview(): string {
-    let content = `# 来福哥的Cursor Rules模板集合\n\n`;
+    let content = `# Lyfe's Cursor Rules模板集合\n\n`;
     content += `> 这是一个为中文开发者优化的Cursor Rules模板集合\n\n`;
     
     ruleTemplates.forEach((template, index) => {
@@ -173,7 +173,7 @@ function generateRulesOverview(): string {
     
     content += `## 使用方法\n\n`;
     content += `1. 使用命令面板（Ctrl+Shift+P / Cmd+Shift+P）\n`;
-    content += `2. 输入"来福哥"或"添加 .cursorrules 文件"\n`;
+    content += `2. 输入"Lyfe"或"添加 .cursorrules 文件"\n`;
     content += `3. 选择适合你项目的规则模板\n`;
     content += `4. 规则文件将自动添加到项目根目录\n\n`;
     content += `## 自定义规则\n\n`;
@@ -185,5 +185,5 @@ function generateRulesOverview(): string {
 }
 
 export function deactivate() {
-    console.log('来福哥的Cursor Rules插件已停用');
+    console.log('Lyfe\'s Cursor Rules插件已停用');
 }

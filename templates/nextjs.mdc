@@ -1,4 +1,4 @@
-# 来福哥的Next.js开发规则
+# Lyfe's Next.js开发规则
 
 ## 项目结构规范（App Router）
 ```
@@ -51,12 +51,12 @@ import { Navigation } from '@/components/layout/Navigation'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: '来福哥的应用',
+  title: 'Lyfe的应用',
   description: '基于Next.js构建的现代Web应用',
   keywords: ['Next.js', 'React', 'TypeScript'],
-  authors: [{ name: '来福哥' }],
+  authors: [{ name: 'Lyfe' }],
   openGraph: {
-    title: '来福哥的应用',
+    title: 'Lyfe的应用',
     description: '基于Next.js构建的现代Web应用',
     type: 'website',
     locale: 'zh_CN',
@@ -99,7 +99,7 @@ interface PageProps {
 }
 
 export const metadata: Metadata = {
-  title: '用户管理 - 来福哥的应用',
+  title: '用户管理 - Lyfe's 应用',
   description: '用户列表和管理功能'
 }
 

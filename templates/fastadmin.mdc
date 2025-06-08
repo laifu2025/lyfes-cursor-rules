@@ -1,4 +1,4 @@
-# 来福哥的FastAdmin开发规则
+# Lyfe's FastAdmin开发规则
 
 ## 规则元信息
 **规则名称**: fastadmin-rules  
@@ -717,7 +717,7 @@ class Example extends Addons
         'title' => '示例插件',
         'description' => '这是一个示例插件，演示插件的基本功能',
         'status' => 1,
-        'author' => '来福哥',
+        'author' => 'Lyfe',
         'version' => '1.0.0'
     ];
 

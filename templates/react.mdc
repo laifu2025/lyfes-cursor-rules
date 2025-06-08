@@ -3,7 +3,7 @@ description:
 globs: 
 alwaysApply: false
 ---
-# 来福哥的React开发规则
+# Lyfe's React开发规则
 
 ## 项目结构规范
 - 组件目录：`src/components/`，按功能模块分组
