@@ -9,6 +9,11 @@
         "type": "git",
         "url": "https://github.com/laifu2025/lyfes-cursor-rules"
     },
+    "bugs": {
+        "url": "https://github.com/laifu2025/lyfes-cursor-rules/issues"
+    },
+    "homepage": "https://github.com/laifu2025/lyfes-cursor-rules#readme",
+    "license": "MIT",
     "engines": {
         "vscode": "^1.74.0"
     },
